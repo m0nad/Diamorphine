@@ -13,7 +13,7 @@ struct linux_dirent {
         #define END_MEM 0xd0000000
 #endif
 
-#define MAGIC_PREFIX "diamorphine"
+#define MAGIC_PREFIX "diamorphine_secret"
 
 #define PF_INVISIBLE 0x10000000
 

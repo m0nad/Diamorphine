@@ -171,7 +171,9 @@ give_root(void)
 	if (newcreds == NULL)
 		return;
 	
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0) && defined(CONFIG_UIDGID_STRICT_TYPE_CHECKS)
+	#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0) \
+		&& defined(CONFIG_UIDGID_STRICT_TYPE_CHECKS) \
+		|| LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)
 		newcreds->uid.val = newcreds->gid.val = 0;
 		newcreds->euid.val = newcreds->egid.val = 0;
 		newcreds->suid.val = newcreds->sgid.val = 0;

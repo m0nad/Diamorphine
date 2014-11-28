@@ -302,6 +302,6 @@ diamorphine_cleanup(void)
 module_init(diamorphine_init);
 module_exit(diamorphine_cleanup);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("m0nad");
 MODULE_DESCRIPTION("LKM rootkit");

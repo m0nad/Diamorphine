@@ -14,7 +14,7 @@ Features
 
 - Sending a signal 64(to any pid) makes the given user become root;
 
-- Files or directories starting with the MAGIC_PREFIX seems to disappear;
+- Files or directories starting with the MAGIC_PREFIX become invisble;
 
 - Source: [https://github.com/m0nad/Diamorphine]
 

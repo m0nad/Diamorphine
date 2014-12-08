@@ -1,3 +1,5 @@
+#include <asm/uaccess.h>
+#include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/dirent.h>

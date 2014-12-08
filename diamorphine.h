@@ -19,9 +19,3 @@ enum {
 	SIGSUPER = 64,
 	SIGMODINVIS = 63,
 };
-
-/*
-#define SIGINVIS 31
-#define SIGSUPER 64
-#define SIGMODINVIS 63
-*/

@@ -275,8 +275,6 @@ unprotect_memory(void)
 static int __init
 diamorphine_init(void)
 {
-	unsigned int level;
-
 	sys_call_table = get_syscall_table_bf();
 	if (!sys_call_table)
 		return -1;

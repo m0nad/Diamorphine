@@ -2,11 +2,12 @@
 #include <linux/syscalls.h>
 #include <linux/dirent.h>
 #include <linux/fdtable.h>
-#include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/version.h> 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
-        #include <linux/proc_ns.h>
+	#include <linux/proc_ns.h>
+#else
+	#include <linux/proc_fs.h>
 #endif
 #include "diamorphine.h"
 

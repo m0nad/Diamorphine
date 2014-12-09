@@ -1,7 +1,7 @@
 Diamorphine
 ===========
 
-Diamorphine is a LKM rootkit for linux kernels 3.x
+Diamorphine is a LKM rootkit for Linux Kernels 2.6.X/3.X
 
 Features
 --
@@ -16,12 +16,12 @@ Features
 
 - Files or directories starting with the MAGIC_PREFIX become invisble;
 
-- Source: [https://github.com/m0nad/Diamorphine]
+- Source: https://github.com/m0nad/Diamorphine
 
 Instalation
 --
 
-Verify if the kernel is 3.x
+Verify if the kernel is 2.6.X/3.X
 ```
 uname -r
 ```
@@ -58,3 +58,26 @@ Then remove the module(as root)
 ```
 rmmod diamorphine
 ```
+
+References
+--
+Wikipedia Rootkit
+https://en.wikipedia.org/wiki/Rootkit
+
+Linux Device Drivers
+http://lwn.net/Kernel/LDD3/
+
+LKM HACKING
+https://www.thc.org/papers/LKM_HACKING.html
+
+Memset's blog
+http://memset.wordpress.com/
+
+Linux on-the-fly kernel patching without LKM
+http://phrack.org/issues/58/7.html
+
+WRITING A SIMPLE ROOTKIT FOR LINUX
+http://big-daddy.fr/repository/Documentation/Hacking/Security/Malware/Rootkits/writing-rootkit.txt
+
+Linux Cross Reference
+http://lxr.free-electrons.com/

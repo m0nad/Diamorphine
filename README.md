@@ -1,7 +1,7 @@
 Diamorphine
 ===========
 
-Diamorphine is a LKM rootkit for Linux Kernels 2.6.X/3.X
+Diamorphine is a LKM rootkit for Linux Kernels 2.6.x/3.x/4.x
 
 Features
 --
@@ -18,10 +18,10 @@ Features
 
 - Source: https://github.com/m0nad/Diamorphine
 
-Instalation
+Installation
 --
 
-Verify if the kernel is 2.6.X/3.X
+Verify if the kernel is 2.6.x/3.x/4.x
 ```
 uname -r
 ```
@@ -46,7 +46,7 @@ Load the module(as root)
 insmod diamorphine.ko
 ```
 
-Desinstalation
+Desinstallation
 --
 
 The module starts invisible, to remove you need to make its visible

@@ -18,7 +18,7 @@ Features
 
 - Source: https://github.com/m0nad/Diamorphine
 
-Installation
+Install
 --
 
 Verify if the kernel is 2.6.x/3.x/4.x
@@ -46,7 +46,7 @@ Load the module(as root)
 insmod diamorphine.ko
 ```
 
-Desinstallation
+Uninstall
 --
 
 The module starts invisible, to remove you need to make its visible

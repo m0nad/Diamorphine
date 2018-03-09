@@ -1,15 +1,19 @@
-#include <asm/uaccess.h>
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/dirent.h>
 #include <linux/slab.h>
 #include <linux/version.h> 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
+	#include <asm/uaccess.h>
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
 	#include <linux/proc_ns.h>
 #else
 	#include <linux/proc_fs.h>
 #endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 26)
 	#include <linux/file.h>
 #else

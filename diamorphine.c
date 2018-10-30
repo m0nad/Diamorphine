@@ -39,6 +39,15 @@ get_syscall_table_bf(void)
 	unsigned long *syscall_table;
 	unsigned long int i;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
+	for (i = (unsigned long int)ksys_close; i < ULONG_MAX;
+			i += sizeof(void *)) {
+		syscall_table = (unsigned long *)i;
+
+		if (syscall_table[__NR_close] == (unsigned long)ksys_close)
+			return syscall_table;
+	}
+#else
 	for (i = (unsigned long int)sys_close; i < ULONG_MAX;
 			i += sizeof(void *)) {
 		syscall_table = (unsigned long *)i;
@@ -46,6 +55,7 @@ get_syscall_table_bf(void)
 		if (syscall_table[__NR_close] == (unsigned long)sys_close)
 			return syscall_table;
 	}
+#endif
 	return NULL;
 }
 

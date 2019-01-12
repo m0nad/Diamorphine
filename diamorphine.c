@@ -3,13 +3,14 @@
 #include <linux/syscalls.h>
 #include <linux/dirent.h>
 #include <linux/slab.h>
-#include <linux/version.h> 
+#include <linux/version.h>
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
 	#include <asm/uaccess.h>
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
 	#include <linux/proc_ns.h>
+    unsigned long sys_close = (unsigned long)__close_fd;
 #else
 	#include <linux/proc_fs.h>
 #endif

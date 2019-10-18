@@ -14,7 +14,7 @@ Features
 
 - Sending a signal 64(to any pid) makes the given user become root;
 
-- Files or directories starting with the MAGIC_PREFIX become invisble;
+- Files or directories starting with the MAGIC_PREFIX become invisible;
 
 - Source: https://github.com/m0nad/Diamorphine
 
@@ -49,7 +49,7 @@ insmod diamorphine.ko
 Uninstall
 --
 
-The module starts invisible, to remove you need to make its visible
+The module starts invisible, to remove you need to make it visible
 ```
 kill -63 0
 ```
@@ -77,7 +77,7 @@ Linux on-the-fly kernel patching without LKM
 http://phrack.org/issues/58/7.html
 
 WRITING A SIMPLE ROOTKIT FOR LINUX
-http://big-daddy.fr/repository/Documentation/Hacking/Security/Malware/Rootkits/writing-rootkit.txt
+https://web.archive.org/web/20160620231623/http://big-daddy.fr/repository/Documentation/Hacking/Security/Malware/Rootkits/writing-rootkit.txt
 
 Linux Cross Reference
 http://lxr.free-electrons.com/

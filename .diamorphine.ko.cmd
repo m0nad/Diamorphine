@@ -1,0 +1,1 @@
+cmd_/home/rootkit/myfiles/code/meepo/Diamorphine/diamorphine.ko := ld -r -m elf_x86_64 -z max-page-size=0x200000 -T ./scripts/module-common.lds --build-id  -o /home/rootkit/myfiles/code/meepo/Diamorphine/diamorphine.ko /home/rootkit/myfiles/code/meepo/Diamorphine/diamorphine.o /home/rootkit/myfiles/code/meepo/Diamorphine/diamorphine.mod.o ;  true

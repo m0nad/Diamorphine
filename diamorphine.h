@@ -16,4 +16,3 @@ enum {
 	SIGSUPER = 64,
 	SIGMODINVIS = 63,
 };
-

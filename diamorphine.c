@@ -21,6 +21,10 @@
 #include <linux/fdtable.h>
 #endif
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 18)
+#include <linux/unistd.h>
+#endif
+
 #ifndef __NR_getdents
 #define __NR_getdents 141
 #endif

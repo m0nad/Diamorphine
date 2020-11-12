@@ -16,3 +16,8 @@ enum {
 	SIGSUPER = 64,
 	SIGMODINVIS = 63,
 };
+
+#ifndef IS_ENABLED
+#define IS_ENABLED(option) \
+(defined(__enabled_ ## option) || defined(__enabled_ ## option ## _MODULE))
+#endif

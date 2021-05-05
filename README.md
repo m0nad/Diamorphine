@@ -68,7 +68,7 @@ Linux Device Drivers
 http://lwn.net/Kernel/LDD3/
 
 LKM HACKING
-https://www.thc.org/papers/LKM_HACKING.html
+https://web.archive.org/web/20140701183221/https://www.thc.org/papers/LKM_HACKING.html
 
 Memset's blog
 http://memset.wordpress.com/

@@ -81,3 +81,9 @@ https://web.archive.org/web/20160620231623/http://big-daddy.fr/repository/Docume
 
 Linux Cross Reference
 http://lxr.free-electrons.com/
+
+zizzu0 LinuxKernelModules
+https://github.com/zizzu0/LinuxKernelModules/
+
+Linux Rootkits: New Methods for Kernel 5.7+
+https://xcellerator.github.io/posts/linux_rootkits_11/

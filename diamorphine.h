@@ -21,3 +21,11 @@ enum {
 #define IS_ENABLED(option) \
 (defined(__enabled_ ## option) || defined(__enabled_ ## option ## _MODULE))
 #endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+#define KPROBE_LOOKUP 1
+#include <linux/kprobes.h>
+static struct kprobe kp = {
+	    .symbol_name = "kallsyms_lookup_name"
+};
+#endif

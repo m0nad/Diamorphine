@@ -11,10 +11,11 @@ jobs:
     strategy:
       matrix:
         os:  [
-          ubuntu-latest, ubuntu-20.04, ubuntu-18.04,
-          debian-11, debian-10, debian-9, debian-8,
-          fedora-39, fedora-38, fedora-37, fedora-36,  # Fedora
-          centos-stream-9, centos-stream-8, rocky-linux-9, rocky-linux-8 # RHEL-likes
+          ubuntu-latest, 
+#          debian-11, debian-10, debian-9, debian-8,
+#          fedora-39, fedora-38, fedora-37, fedora-36,  # Fedora
+#          centos-stream-9, centos-stream-8, rocky-linux-8, ubuntu-20.04,
+          rocky-linux-9 # RHEL-likes
         ]
     runs-on: ${{ matrix.os }}
 
@@ -60,3 +61,37 @@ jobs:
         with:
           name: build-artifacts-${{ matrix.os }}
           path: diamorphine-${{ matrix.os }} # Replace with the actual path
+
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Important!
+        with:
+          tag_name: ${{ github.ref }} # The tag that triggered the workflow
+          release_name: Release ${{ github.ref }} # Name of the release
+          body: | # Release notes (can be multiline)
+            Changes in this release:
+            - Bug fixes
+            - New features
+
+  
+      - name: Upload Release Asset (Binary)
+        id: upload_binary
+        uses: actions/upload-release-asset@v1
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Important!
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # URL from create-release step
+          asset_path: .\diamorphine-${{ matrix.os }} 
+          asset_name: diamorphine-${{ matrix.os }}_${{ github.ref }}.tar.gz
+  
+      - name: Upload Release Asset (Source Code - Optional)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./diamorphine-${{ matrix.os }}-${{ github.ref }}.tar.gz # Path to your source archive
+          asset_name: diamorphine-${{ matrix.os }}-${{ github.ref }}.tar.gz # Name of source archive

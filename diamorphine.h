@@ -1,3 +1,6 @@
+unsigned long
+resolve_sym(char *symbol);
+
 unsigned long *
 get_syscall_table_bf(void);
 

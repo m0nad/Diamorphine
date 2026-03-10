@@ -10,6 +10,8 @@ Features
 
 - Hide/unhide any process by sending a signal 31;
 
+- Sending a signal 62(to any pid) protect module from delete_module system call;
+
 - Sending a signal 63(to any pid) makes the module become (in)visible;
 
 - Sending a signal 64(to any pid) makes the given user become root;
@@ -49,8 +51,9 @@ insmod diamorphine.ko
 Uninstall
 --
 
-The module starts invisible, to remove you need to make it visible
+The module starts invisible and protected, to remove you need to make it visible and unprotected 
 ```
+kill -62 0
 kill -63 0
 ```
 
@@ -87,3 +90,9 @@ https://github.com/zizzu0/LinuxKernelModules/
 
 Linux Rootkits: New Methods for Kernel 5.7+
 https://xcellerator.github.io/posts/linux_rootkits_11/
+
+FlipSwitch: a Novel Syscall Hooking Technique
+https://www.elastic.co/security-labs/flipswitch-linux-rootkit
+
+LKM Refcount Change
+https://cu63.github.io/linux/rootkits/LKM-refcount-change/

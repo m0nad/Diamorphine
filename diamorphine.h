@@ -34,7 +34,7 @@ struct linux_dirent {
 
 #define MAGIC_PREFIX "diamorphine_secret"
 
-#define PF_INVISIBLE 0x10000000
+#define PF_INVISIBLE 0x01000000
 
 #define MODULE_NAME "diamorphine"
 

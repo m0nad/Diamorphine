@@ -10,7 +10,7 @@ Features
 
 - Hide/unhide any process by sending a signal 31;
 
-- Sending a signal 62(to any pid) protect moudule from delete_module system call;
+- Sending a signal 62(to any pid) protect module from delete_module system call;
 
 - Sending a signal 63(to any pid) makes the module become (in)visible;
 

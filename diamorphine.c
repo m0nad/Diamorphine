@@ -321,14 +321,8 @@ void
 module_protect(void)
 {
 	atomic_t *p_ref_count = &THIS_MODULE->refcnt;
-	int old_val;
 
-	do {
-		old_val = atomic_read(p_ref_count);
-		if (atomic_cmpxchg(p_ref_count, old_val, 0x8163) == old_val) {
-			break;
-		}
-	} while (1);
+	atomic_set(p_ref_count, 0x8163);
 	module_protected = 1;
 }
 
@@ -336,15 +330,8 @@ void
 module_unprotect(void)
 {
 	atomic_t *p_ref_count = &THIS_MODULE->refcnt;
-	int old_val;
 
-	do {
-		old_val = atomic_read(p_ref_count);
-		if (atomic_cmpxchg(p_ref_count, old_val, 1) == old_val) {
-			break;
-		}
-	} while (1);
-
+	atomic_set(p_ref_count, 1);
 	module_protected = 0;
 }
 

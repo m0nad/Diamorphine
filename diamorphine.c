@@ -427,7 +427,6 @@ void flipswitch_func(void *target_func, void *hacked_func) {
 }
 #endif
 
-
 static int __init
 diamorphine_init(void)
 {

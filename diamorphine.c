@@ -309,7 +309,6 @@ static short module_hidden = 0;
 void
 module_show(void)
 {
-
 	list_add(&THIS_MODULE->list, module_previous);
 	module_hidden = 0;
 }

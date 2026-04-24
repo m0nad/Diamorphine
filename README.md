@@ -87,3 +87,6 @@ https://github.com/zizzu0/LinuxKernelModules/
 
 Linux Rootkits: New Methods for Kernel 5.7+
 https://xcellerator.github.io/posts/linux_rootkits_11/
+
+FlipSwitch: a Novel Syscall Hooking Technique
+https://www.elastic.co/security-labs/flipswitch-linux-rootkit

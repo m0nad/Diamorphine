@@ -1,7 +1,7 @@
 Diamorphine
 ===========
 
-Diamorphine is a LKM rootkit for Linux Kernels 2.6.x/3.x/4.x/5.x and ARM64
+Diamorphine is a LKM rootkit for Linux Kernels 2.6.x/3.x/4.x/5.x/6.x (x86/x86_64 and ARM64)
 
 Features
 --
@@ -21,7 +21,7 @@ Features
 Install
 --
 
-Verify if the kernel is 2.6.x/3.x/4.x/5.x
+Verify if the kernel is 2.6.x/3.x/4.x/5.x/6.x
 ```
 uname -r
 ```
@@ -68,7 +68,7 @@ Linux Device Drivers
 http://lwn.net/Kernel/LDD3/
 
 LKM HACKING
-https://www.thc.org/papers/LKM_HACKING.html
+https://web.archive.org/web/20140701183221/https://www.thc.org/papers/LKM_HACKING.html
 
 Memset's blog
 http://memset.wordpress.com/
@@ -81,3 +81,12 @@ https://web.archive.org/web/20160620231623/http://big-daddy.fr/repository/Docume
 
 Linux Cross Reference
 http://lxr.free-electrons.com/
+
+zizzu0 LinuxKernelModules
+https://github.com/zizzu0/LinuxKernelModules/
+
+Linux Rootkits: New Methods for Kernel 5.7+
+https://xcellerator.github.io/posts/linux_rootkits_11/
+
+FlipSwitch: a Novel Syscall Hooking Technique
+https://www.elastic.co/security-labs/flipswitch-linux-rootkit

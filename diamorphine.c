@@ -24,7 +24,7 @@
 #include <linux/fdtable.h>
 #endif
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 18)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 39)
 #include <linux/unistd.h>
 #endif
 
